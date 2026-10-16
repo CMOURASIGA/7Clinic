@@ -1,6 +1,6 @@
 # SPEC 01 | CP-01 Contratos e segurança
 
-**Estado:** **ARCHITECTURE APPROVED WITH BUSINESS AND PRIVACY RESERVATIONS**, conforme decisão da clínica sobre o SHA `1e3c8d278c48e15ecde52e7d2afa3fb99b549b70`. Modelo, ADRs, RBAC, RLS proposta e contratos são referências arquiteturais, sem aprovação das regras definitivas. Não há banco provisionado, migração SQL, conexão remota ou dados reais. A SPEC 00 segue **TECHNICALLY COMPLETE — INTEGRATED HUMAN VALIDATION DEFERRED**. PR #2 permanece Draft e sem merge em `develop`.
+**Estado:** **ARCHITECTURE APPROVED WITH BUSINESS AND PRIVACY RESERVATIONS**. O PR #2 foi integrado tecnicamente em `develop` por merge commit `f67fb73d6aadf840900b51764f4c945228e94f9f`, preservando o SHA aprovado `c9d30973afad6ad3dfe3e864071787fb208e7836`. Modelo, ADRs, RBAC, RLS proposta e contratos são referências arquiteturais, sem aprovação das regras definitivas. Não há banco provisionado, migração SQL, conexão remota ou dados reais. A SPEC 00 segue **TECHNICALLY COMPLETE — INTEGRATED HUMAN VALIDATION DEFERRED**.
 
 ## Entregas e rastreabilidade
 
@@ -33,4 +33,4 @@
 
 ## Próximo gate
 
-Fechar este checkpoint documental no PR #2 Draft e submeter sua integração técnica a autorização expressa. O detalhamento CP-02 está autorizado; implementação física, criação do projeto Supabase e migrações definitivas aguardam aprovação específica da região, ambiente e custo. Registrar respostas formais D01–D13 dos responsáveis antes de transformar hipóteses em constraints ou políticas definitivas. Os testes S01–S12 continuam **NOT TESTED no backend**. Human Validation integrada permanece pendente antes de operação real.
+O CP-01 foi integrado tecnicamente. A preparação CP-02 está autorizada; criação do projeto Supabase e migrações definitivas aguardam autorização expressa da região, ambiente e custo. Registrar respostas formais D01–D13 dos responsáveis antes de transformar hipóteses em constraints ou políticas definitivas. Os testes S01–S12 continuam **NOT TESTED no backend**. Human Validation integrada permanece pendente antes de operação real.

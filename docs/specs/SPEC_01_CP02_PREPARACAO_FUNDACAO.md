@@ -1,6 +1,6 @@
 # SPEC 01 | CP-02 Preparação técnica da fundação
 
-**Estado:** detalhamento autorizado, sem implementação, projeto Supabase, migração definitiva ou dado real. Referência: [CP-01 aprovado com ressalvas](SPEC_01_CP01_CONTRATOS_SEGURANCA.md). PR #2 Draft, sem merge.
+**Estado:** preparação autorizada, sem projeto Supabase, migração definitiva ou dado real. Referência: [CP-01 aprovado com ressalvas e integrado tecnicamente](SPEC_01_CP01_CONTRATOS_SEGURANCA.md).
 
 ## Contratos de identidade e cadastro
 
@@ -68,4 +68,4 @@ Sequência futura, **não executada**: fixar versões do CLI e dependências; cr
 2. Antes do provisionamento: aprovar expressamente um projeto não produtivo, região `sa-east-1`, custo/teto e capacidade Free da conta. Esta documentação não o cria.
 3. Segurança confirma grants, revogação e cenários negativos; RLS só recebe PASS após execução no backend. CP-02 físico terá PR próprio, testes, typecheck, lint, build, smoke e restore sintético.
 4. Encaixes, duração e cancelamento (D04–D05) bloqueiam regras físicas da agenda; contratos financeiros (D06–D07) bloqueiam financeiro; retificação, emergência e retenção (D08–D09) bloqueiam prontuário definitivo e operação real; backup de produção e legado real seguem pendentes.
-5. Integração técnica do PR #2 depende de autorização expressa. Não avançar CP-03 automaticamente. SPEC 00 segue **TECHNICALLY COMPLETE — INTEGRATED HUMAN VALIDATION DEFERRED**.
+5. PR #2 integrado tecnicamente em `develop`, sem aprovação das regras definitivas. Não avançar CP-03 automaticamente. SPEC 00 segue **TECHNICALLY COMPLETE — INTEGRATED HUMAN VALIDATION DEFERRED**.

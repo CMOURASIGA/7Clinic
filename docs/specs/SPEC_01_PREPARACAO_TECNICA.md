@@ -1,7 +1,7 @@
 # SPEC 01 | Preparação técnica da persistência e identidade
 
-**Estado:** proposta para aprovação, sem migração SQL, provisionamento ou dados reais.
-**Base funcional:** SPEC 00 CP-04, CP-05 e CP-06. A homologação humana integrada foi adiada, não dispensada. O PR #1 permanece Draft.
+**Estado:** princípios aprovados como base com ressalvas; CP-01 documental autorizado, sem migração SQL, provisionamento ou dados reais.
+**Base funcional:** SPEC 00 CP-04, CP-05 e CP-06. A homologação humana integrada foi adiada, não dispensada. O PR #1 foi integrado tecnicamente em `develop`; PR #2 permanece Draft. Ver os documentos `SPEC_01_CP01_*` para detalhamento e decisões pendentes.
 
 ## 1. Arquitetura proposta
 

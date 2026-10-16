@@ -1,6 +1,6 @@
 # SPEC 01 | FOUNDATION SUPABASE
 
-**Estado:** preparação arquitetural autorizada; implementação e provisionamento pendentes de aprovação.
+**Estado:** matriz aprovada como base com ressalvas; CP-01 de contratos e segurança autorizado. Implementação e provisionamento aguardam nova autorização.
 **Pré-requisito para implementar:** aprovação da arquitetura, definição das decisões abertas e integração técnica da SPEC 00 autorizada. A Human Validation integrada da SPEC 00 fica adiada para antes de qualquer operação real.
 
 ## Objetivo

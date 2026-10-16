@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { applyCommand, createSeed, executeForRole, notificationItems, pendingItems, totals } from "../lib/domain.ts";
+import { filterFinance, type FinanceFilters } from "../lib/finance-selectors.ts";
 
 test("confirmação libera prontuário e gera produção financeira antes da evolução", () => {
   const state = executeForRole(createSeed(), "reception", { type: "confirm", appointmentId: "a1", actor: "Recepção" });
@@ -138,4 +139,29 @@ test("correção de falta não reabre horário já ocupado", () => {
   let state = executeForRole(createSeed(), "reception", { type: "absence", appointmentId: "a1", actor: "Recepção" });
   state = executeForRole(state, "reception", { type: "schedule", patientId: "p4", professionalId: "pr1", unitId: "u1", day: "2026-10-16", time: "08:00", actor: "Recepção" });
   assert.throws(() => executeForRole(state, "reception", { type: "reverse", appointmentId: "a1", reason: "Corrigir ausência simulada", actor: "Recepção" }), /Horário ocupado/);
+});
+
+test("filtros financeiros respeitam convênio, profissional, período, unidade e situação", () => {
+  let state = createSeed();
+  state = executeForRole(state, "reception", { type: "confirm", appointmentId: "a2", actor: "Recepção" });
+  state = executeForRole(state, "finance", { type: "settle", entryId: "fin:a2", field: "revenueReceived", actor: "Financeiro" });
+  const filters: FinanceFilters = { professionalId: "pr2", insurance: "Convênio Fictício Verde", from: "2026-10-16", to: "2026-10-16", account: "receivable", situation: "settled" };
+  assert.deepEqual(filterFinance(state, "u1", filters).entries.map((item) => item.appointmentId), ["a2"]);
+  assert.equal(filterFinance(state, "u2", filters).entries.length, 0);
+  assert.equal(filterFinance(state, "u1", { ...filters, situation: "open" }).entries.length, 0);
+  assert.equal(filterFinance(state, "u1", { ...filters, account: "payable", situation: "open" }).entries.length, 1);
+});
+
+test("reversão preserva histórico financeiro e não compõe saldo ou duplica reconfirmação", () => {
+  let state = executeForRole(createSeed(), "reception", { type: "confirm", appointmentId: "a1", actor: "Recepção" });
+  state = executeForRole(state, "reception", { type: "reverse", appointmentId: "a1", reason: "Confirmação de teste incorreta", actor: "Recepção" });
+  assert.equal(state.financialReversals.length, 1);
+  assert.equal(totals(state, "u1").expectedRevenue, 0);
+  const filters: FinanceFilters = { professionalId: "pr1", insurance: "Convênio Fictício Azul", from: "2026-10-16", to: "2026-10-16", account: "all", situation: "reversed" };
+  assert.equal(filterFinance(state, "u1", filters).reversals.length, 1);
+  state = executeForRole(state, "reception", { type: "editAppointment", appointmentId: "a1", day: "2026-10-17", time: "12:00", professionalId: "pr2", unitId: "u2", reason: "Remarcação demonstrativa", actor: "Recepção" });
+  assert.equal(filterFinance(state, "u1", filters).reversals.length, 1);
+  state = executeForRole(state, "reception", { type: "confirm", appointmentId: "a1", actor: "Recepção" });
+  assert.equal(state.financial.filter((item) => item.appointmentId === "a1").length, 1);
+  assert.equal(totals(state, "u2").expectedRevenue, 240);
 });

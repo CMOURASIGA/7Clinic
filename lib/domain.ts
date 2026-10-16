@@ -42,6 +42,21 @@ export interface FinancialEntry {
   createdAt: string;
 }
 
+export interface FinancialReversal {
+  id: string;
+  appointmentId: string;
+  unitId: UnitId;
+  professionalId: string;
+  patientId: string;
+  insurance: string;
+  day: string;
+  expectedRevenue: number;
+  payout: number;
+  reversedAt: string;
+  reason: string;
+  actor: string;
+}
+
 export interface PayoutRule {
   effectiveAt: string;
   amount: number;
@@ -68,6 +83,7 @@ export interface DemoState {
   professionals: Professional[];
   appointments: Appointment[];
   financial: FinancialEntry[];
+  financialReversals: FinancialReversal[];
   payoutRules: PayoutRule[];
   policies: Policies;
   audit: AuditEvent[];
@@ -122,6 +138,7 @@ export function createSeed(): DemoState {
     financial: [
       { id: "fin:a3", appointmentId: "a3", unitId: "u2", professionalId: "pr1", expectedRevenue: EXPECTED_REVENUE, payout: 18, revenueReceived: false, payoutPaid: false, createdAt: DEMO_TIME },
     ],
+    financialReversals: [],
     payoutRules: [{ effectiveAt: DEMO_TIME, amount: 18 }],
     policies: { blockOnPriorPending: false, notifyOnClinicalPending: true, notifyOnConfirmationPending: true },
     audit: [{ id: "seed", at: DEMO_TIME, actor: "Sistema demonstrativo", action: "SEED", appointmentId: "a3", detail: "Massa inteiramente fictícia." }],
@@ -240,10 +257,12 @@ export function applyCommand(state: DemoState, command: Command): DemoState {
     if (command.type === "reverse" && conflict(state, appointment.id, appointment.patientId, appointment.professionalId, appointment.day, appointment.time)) throw new Error("Horário ocupado. Reagende o atendimento conflitante antes de desfazer a falta.");
     const entry = state.financial.find((item) => item.appointmentId === appointment.id);
     if (entry?.revenueReceived || entry?.payoutPaid) throw new Error("Lançamento já conciliado. A gestão precisa tratar o financeiro antes desta reversão.");
+    const reversal: FinancialReversal | null = entry ? { id: `rev:${state.audit.length + 1}:${appointment.id}`, appointmentId: appointment.id, unitId: entry.unitId, professionalId: entry.professionalId, patientId: appointment.patientId, insurance: state.patients.find((patient) => patient.id === appointment.patientId)?.insurance ?? "Convênio fictício", day: appointment.day, expectedRevenue: entry.expectedRevenue, payout: entry.payout, reversedAt: new Date().toISOString(), reason, actor: command.actor } : null;
     return { ...state,
       appointments: replace({ ...appointment, status: command.type === "reverse" ? "scheduled" : "cancelled", exceptionReason: undefined }),
       financial: state.financial.filter((item) => item.appointmentId !== appointment.id),
-      audit: audit(state, command.actor, command.type === "reverse" ? "REVERSE" : "CANCEL", `${appointment.status} → ${command.type === "reverse" ? "scheduled" : "cancelled"}; produção simulada revertida. Motivo: ${reason}`, appointment.id),
+      financialReversals: reversal ? [...(state.financialReversals ?? []), reversal] : state.financialReversals ?? [],
+      audit: audit(state, command.actor, command.type === "reverse" ? "REVERSE" : "CANCEL", `${appointment.status} → ${command.type === "reverse" ? "scheduled" : "cancelled"}; ${reversal ? `lançamento ${entry?.id} revertido (receita R$ ${entry?.expectedRevenue.toFixed(2)}, repasse R$ ${entry?.payout.toFixed(2)})` : "sem lançamento"}. Motivo: ${reason}`, appointment.id),
     };
   }
 

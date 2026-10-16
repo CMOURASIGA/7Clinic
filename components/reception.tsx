@@ -1,16 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { DEMO_DAY, hasPriorPending, UNIT_NAMES, type Command, type DemoState, type UnitId } from "../lib/domain";
+import { DEMO_DAY, hasPriorPending, pendingItems, UNIT_NAMES, type Command, type DemoState, type UnitId } from "../lib/domain";
 import { patientName, professionalName, Stat, Status, UnitPicker } from "./shared";
 
-export function Reception({ state, unit, onUnit, selectedDay, onDay, run }: {
+export function Reception({ state, unit, onUnit, selectedDay, onDay, run, onManagement }: {
   state: DemoState;
   unit: UnitId | "all";
   onUnit: (unit: UnitId | "all") => void;
   selectedDay: string;
   onDay: (day: string) => void;
   run: (command: Command) => boolean;
+  onManagement: () => void;
 }) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("all");
@@ -34,7 +35,7 @@ export function Reception({ state, unit, onUnit, selectedDay, onDay, run }: {
     .filter((item) => (unit === "all" || item.unitId === unit) && (filter === "all" || item.status === filter) && (!selectedDay || item.day === selectedDay))
     .filter((item) => patientName(state, item).toLowerCase().includes(query.toLowerCase()))
     .sort((a, b) => (a.day + a.time).localeCompare(b.day + b.time));
-  const pending = state.appointments.filter((item) => item.status === "scheduled" && (unit === "all" || item.unitId === unit));
+  const pending = pendingItems(state, unit).filter((item) => item.kind !== "clinical").map((item) => item.appointment);
 
   return <>
     <div className="view-header"><div><span className="kicker">RECEPÇÃO · OPERAÇÃO DEMONSTRATIVA</span><h1>Agenda e atendimento</h1><p>Confirme, registre faltas e transfira atendimentos entre as duas unidades.</p></div><UnitPicker value={unit} onChange={onUnit}/></div>
@@ -73,6 +74,6 @@ export function Reception({ state, unit, onUnit, selectedDay, onDay, run }: {
         </article>;
       }) : <div className="empty">Nenhum atendimento para os filtros selecionados.</div>}</div>
     </section>
-    <section className="surface"><div className="section-heading"><div><h2>Central de pendências</h2><p>Confirmações aguardando ação da recepção.</p></div></div><div className="pending-grid">{pending.map((item) => <div className="pending-card" key={item.id}><span className="dot"/><div><strong>{patientName(state, item)}</strong><small>{item.time} · {UNIT_NAMES[item.unitId]} · {hasPriorPending(state, item) && state.policies.blockOnPriorPending ? "Bloqueio aplicável" : "A confirmar"}</small></div></div>)}</div></section>
+    <section className="surface"><div className="section-heading"><div><h2>Central de pendências</h2><p>Confirmações aguardando ação da recepção.</p></div></div><div className="pending-grid">{pending.map((item) => { const blocked = state.policies.blockOnPriorPending && hasPriorPending(state, item) && !item.exceptionReason; return <div className="pending-card" key={item.id}><span className="dot"/><div><strong>{patientName(state, item)}</strong><small>{item.day} · {item.time} · {UNIT_NAMES[item.unitId]} · {blocked ? "Bloqueio aplicável" : "A confirmar"}</small><div className="button-line"><button className="button button-light" onClick={() => onDay(item.day)}>Ver na agenda</button>{blocked ? <button className="button button-light" onClick={onManagement}>Solicitar liberação</button> : <button className="button button-primary" onClick={() => run({ type: "confirm", appointmentId: item.id, actor: "Recepção demonstrativa" })}>Confirmar</button>}</div></div></div>; })}{!pending.length ? <p className="muted">Nenhuma confirmação pendente.</p> : null}</div></section>
   </>;
 }

@@ -23,7 +23,7 @@ export const localRepository = {
       const saved = window.localStorage.getItem(STORAGE_KEY);
       if (!saved) return createSeed();
       const parsed: unknown = JSON.parse(saved);
-      return isDemoState(parsed) ? parsed : createSeed();
+      return isDemoState(parsed) ? { ...parsed, financialReversals: Array.isArray(parsed.financialReversals) ? parsed.financialReversals : [] } : createSeed();
     } catch {
       return createSeed();
     }

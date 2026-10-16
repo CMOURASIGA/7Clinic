@@ -1,0 +1,2 @@
+# 7Clinic
+Documentação inicial.

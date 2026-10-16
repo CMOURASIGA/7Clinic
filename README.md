@@ -13,3 +13,7 @@ Repositório público: não publicar credenciais, dados clínicos, contratos ou 
 `npm install`, `npm run dev`. Para verificar: `npm test`, `npm run typecheck`, `npm run lint`, `npm run build`.
 
 O MVP é local-first, usa apenas dados fictícios e persiste o estado no navegador. A troca de perfil demonstra as telas, mas **não substitui autenticação ou autorização segura**. Não cadastrar pacientes nem evoluções reais. O roteiro e as limitações estão em [Checkpoint 02](docs/checkpoints/SPEC_00_CHECKPOINT_02.md).
+
+## Verificação E2E da SPEC 00
+
+Com o build pronto, inicie `npm run start` em outro terminal e execute `npm run test:e2e`. O teste usa Playwright e verifica desktop (1440 px), tablet (768 px) e celular (390 px), além de confirmação, financeiro, prontuário e persistência. Instale o Chromium do Playwright no ambiente de testes ou informe `CHROMIUM_EXECUTABLE_PATH` para um binário compatível. `BASE_URL` permite apontar para outro servidor, por padrão `http://localhost:3000`.

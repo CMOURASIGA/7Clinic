@@ -12,4 +12,4 @@
 - SPEC 09 MAIA_DEMONSTRATIVA: **PLANNED**
 - SPEC 10 HOMOLOGACAO_GO_LIVE: **PLANNED**
 
-SPEC 00 concluída tecnicamente em 16/10/2026; smoke básico desktop e mobile aprovado, sem homologação humana integrada. CP-04, CP-05 e CP-06 permanecem na branch de feature e no PR #1 Draft. Merge em `develop` depende de autorização expressa. Somente a preparação técnica da SPEC 01 foi autorizada, sem banco definitivo ou código de integração.
+SPEC 00 concluída tecnicamente em 16/10/2026; smoke básico desktop e mobile aprovado, sem homologação humana integrada. PR #1 integrado tecnicamente em `develop` por merge commit `bf6581e5689309fa1676a613ef0585cd08d5bf03`, preservando o SHA `1c63e3759ba25109d16933ee1f2274d77ec4cd35` como ancestral. SPEC 01 está em refinamento arquitetural; matriz e plano propostos aguardam aprovação, sem banco definitivo ou código de integração.

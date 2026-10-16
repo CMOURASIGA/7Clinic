@@ -40,9 +40,9 @@ São Paulo (`sa-east-1`) está listada como região disponível da plataforma Su
 | Legado não inventariado | Duplicidade, conflito de IDs e dados sensíveis no Preview; importação sintética e plano D13 | Carga real |
 | Human Validation adiada | Falha operacional não descoberta pelos testes; matriz completa e aceite antes de operação real | Produção |
 
-## Plano executivo CP-02, sujeito a autorização específica
+## Plano executivo CP-02, sujeito a autorização específica de implementação
 
-1. **Entrada:** clínica designa responsável central por acesso, confirma hipótese de paciente único e limites de unidade, e aprova região/ambiente/custo escolhidos. Segurança aprova matriz RBAC e cenários negativos. O CP-02 não inicia por esta documentação.
+1. **Entrada:** o detalhamento técnico foi autorizado após a aprovação da arquitetura CP-01. Para iniciar implementação física e provisionamento, clínica designa responsável central por acesso, confirma hipótese de paciente único e limites de unidade, e aprova região/ambiente/custo escolhidos. Segurança confirma matriz RBAC e cenários negativos. O detalhamento não equivale a essa autorização.
 2. **Escopo:** projeto não produtivo autorizado com dados sintéticos, Auth e usuários de teste, organizações/unidades, perfis e vínculos, grants mínimos, RLS e migrações versionadas. Sem prontuário real, financeiro real ou importação do legado.
 3. **Entregas:** SHA e PR Draft, esquema e políticas revisados, tipos gerados, matriz de acesso com PASS/FAIL/NOT TESTED, relatório de Security Advisor, ensaio de backup/restore sintético, Preview protegido e custo observado.
 4. **Gates:** anônimo negado; Recepção de uma unidade negada na outra; profissional não vinculado e Financeiro/Gestão negados no corpo clínico; revogação efetiva; UPDATE sem troca de tenant/unidade; grants explícitos; nenhum dado real. Testes, typecheck, lint, build, smoke desktop/mobile e `git diff --check`.

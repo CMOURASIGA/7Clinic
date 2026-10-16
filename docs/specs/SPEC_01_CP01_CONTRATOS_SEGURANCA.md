@@ -1,6 +1,6 @@
 # SPEC 01 | CP-01 Contratos e segurança
 
-**Estado:** arquitetura CP-01 pronta para revisão. Documento e anexos são propostas; não há banco provisionado, migração SQL, conexão remota ou dados reais. A SPEC 00 segue **TECHNICALLY COMPLETE — INTEGRATED HUMAN VALIDATION DEFERRED**. PR #2 permanece Draft e sem merge em `develop`.
+**Estado:** **ARCHITECTURE APPROVED WITH BUSINESS AND PRIVACY RESERVATIONS**, conforme decisão da clínica sobre o SHA `1e3c8d278c48e15ecde52e7d2afa3fb99b549b70`. Modelo, ADRs, RBAC, RLS proposta e contratos são referências arquiteturais, sem aprovação das regras definitivas. Não há banco provisionado, migração SQL, conexão remota ou dados reais. A SPEC 00 segue **TECHNICALLY COMPLETE — INTEGRATED HUMAN VALIDATION DEFERRED**. PR #2 permanece Draft e sem merge em `develop`.
 
 ## Entregas e rastreabilidade
 
@@ -12,6 +12,7 @@
 | Transações, auditoria, idempotência e concorrência | [Contratos e migração](SPEC_01_CP01_TRANSACOES_MIGRACAO.md) |
 | Interfaces e migração local-first | [Contratos e migração](SPEC_01_CP01_TRANSACOES_MIGRACAO.md) |
 | Ambientes, custos, riscos e CP-02 | [Infraestrutura e riscos](SPEC_01_CP01_INFRA_RISCOS_CP02.md) |
+| Detalhamento técnico autorizado do CP-02 | [Pacote de fundação](SPEC_01_CP02_PREPARACAO_FUNDACAO.md) |
 
 ## Fronteiras de aprovação
 
@@ -32,4 +33,4 @@
 
 ## Próximo gate
 
-Revisar matriz e ADRs com responsáveis da clínica, de Financeiro, técnico assistencial e de privacidade. Registrar respostas por ID D01–D13. Só então autorizar CP-02 com escopo, região, ambiente e teto de custo explícitos. Human Validation integrada permanece pendente antes de operação real.
+Fechar este checkpoint documental no PR #2 Draft e submeter sua integração técnica a autorização expressa. O detalhamento CP-02 está autorizado; implementação física, criação do projeto Supabase e migrações definitivas aguardam aprovação específica da região, ambiente e custo. Registrar respostas formais D01–D13 dos responsáveis antes de transformar hipóteses em constraints ou políticas definitivas. Os testes S01–S12 continuam **NOT TESTED no backend**. Human Validation integrada permanece pendente antes de operação real.

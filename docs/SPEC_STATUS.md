@@ -1,6 +1,6 @@
 # Status
 
-- SPEC 00 MVP_OPERACIONAL: **IN DEVELOPMENT**
+- SPEC 00 MVP_OPERACIONAL: **READY FOR INTEGRATED HUMAN VALIDATION**
 - SPEC 01 FOUNDATION_SUPABASE: **PLANNED**
 - SPEC 02 IDENTIDADE_RBAC_WHITELABEL: **PLANNED**
 - SPEC 03 CADASTROS_UNIDADES_LEGADO: **PLANNED**
@@ -13,3 +13,4 @@
 - SPEC 10 HOMOLOGACAO_GO_LIVE: **PLANNED**
 
 SPEC 00 autorizada em 16/10/2026 e iniciada exclusivamente com o Checkpoint 01. Nenhuma SPEC subsequente está autorizada.
+CP-04 e CP-05 concluídos em branch de feature. CP-06 preparado para Human Validation integrada; aprovação e merge pendentes. As SPECs seguintes continuam PLANNED.

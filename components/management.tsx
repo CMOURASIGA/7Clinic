@@ -15,6 +15,10 @@ export function Management({ state, unit, onUnit, run, onNavigate }: { state: De
     const input = question.toLowerCase();
     if (input.includes("bloque") || input.includes("exce")) {
       setAnswer(`A regra de bloqueio está ${state.policies.blockOnPriorPending ? "ativa" : "inativa"} e há ${blocked.length} atendimentos bloqueados nesta visão. A gestão pode justificar uma liberação excepcional.`);
+    } else if (input.includes("finance") || input.includes("receita") || input.includes("repasse")) {
+      setAnswer(`Supervisão financeira demonstrativa: ${money(summary.expectedRevenue)} de produção prevista, ${money(summary.receivedRevenue)} recebidos e ${money(summary.payoutDue)} de repasses a pagar. A operação detalhada fica no ambiente Financeiro.`);
+    } else if (input.includes("unidade")) {
+      setAnswer(`Unidade I: ${totals(state, "u1").confirmed} confirmados e ${totals(state, "u1").clinicalPending} prontuários pendentes. Unidade II: ${totals(state, "u2").confirmed} confirmados e ${totals(state, "u2").clinicalPending} prontuários pendentes. Dados exclusivamente demonstrativos.`);
     } else {
       setAnswer(`Nesta visão, ${summary.scheduled} confirmações aguardam ação e ${summary.clinicalPending} prontuários estão pendentes. Trata-se somente de uma resposta simulada, sem avaliação clínica.`);
     }

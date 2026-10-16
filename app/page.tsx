@@ -5,7 +5,7 @@ import { Management } from "../components/management";
 import { Finance } from "../components/finance";
 import { ProfessionalView } from "../components/professional";
 import { Reception } from "../components/reception";
-import { createSeed, DEMO_DAY, executeForRole, notificationItems, type Command, type DemoState, type Role, type UnitId } from "../lib/domain";
+import { createScenario, DEMO_DAY, executeForRole, notificationItems, type Command, type DemoState, type Role, type UnitId } from "../lib/domain";
 import { localRepository } from "../lib/local-repository";
 
 const views: { id: Role; title: string }[] = [
@@ -25,7 +25,7 @@ function NavIcon({ role }: { role: Role }) {
 }
 
 export default function Home() {
-  const [state, setState] = useState<DemoState>(createSeed);
+  const [state, setState] = useState<DemoState>(createScenario);
   const [ready, setReady] = useState(false);
   const [role, setRole] = useState<Role>("reception");
   const [unit, setUnit] = useState<UnitId | "all">("all");
@@ -59,7 +59,9 @@ export default function Home() {
   function reset() {
     if (!window.confirm("Reiniciar todos os dados fictícios desta demonstração neste navegador?")) return;
     localRepository.clear();
-    setState(createSeed());
+    setState(createScenario());
+    setSelectedDay(DEMO_DAY);
+    setUnit("all");
     setMessage({ text: "Demonstração reiniciada.", error: false });
   }
 
@@ -83,7 +85,7 @@ export default function Home() {
       <div className="brand"><div><strong>7Clinic</strong><small>Gestão clínica · SPEC 00</small></div></div>
       <div className="side-section">PRINCIPAL</div>
       <nav aria-label="Ambientes" className="nav-links">{views.map((view) => <button key={view.id} className={role === view.id ? "active" : ""} aria-current={role === view.id ? "page" : undefined} onClick={() => { navigate(view.id); setMessage(null); }}><NavIcon role={view.id}/>{view.title}</button>)}</nav>
-      <div className="side-bottom"><div className="calendar-box"><div className="calendar-head"><strong>Data da agenda</strong><span>Recepção e profissionais</span></div><input className="sidebar-date" aria-label="Data da agenda no menu" type="date" value={selectedDay} onChange={(event) => setSelectedDay(event.target.value)}/><button className="reset" onClick={() => setSelectedDay("")}>Mostrar todas as datas</button></div><button className="reset" onClick={reset}>↺ &nbsp; Reiniciar demonstração</button></div>
+      <div className="side-bottom"><div className="calendar-box"><div className="calendar-head"><strong>Data da agenda</strong><span>Recepção e profissionais</span></div><input className="sidebar-date" aria-label="Data da agenda no menu" type="date" value={selectedDay} onChange={(event) => setSelectedDay(event.target.value)}/><button className="reset" onClick={() => setSelectedDay("")}>Mostrar todas as datas</button></div><button className="reset" onClick={reset}>↺ &nbsp; Reiniciar cenário fictício</button></div>
     </aside>
     <div className="workspace">
       <header className="topbar"><button className="mobile-nav-toggle" aria-label="Abrir menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(true)}>☰</button><div className="breadcrumb"><small>WORKSPACE ATIVO</small><strong>{views.find((view) => view.id === role)?.title}</strong></div><div className="top-right"><span className="demo-tag">● &nbsp; DEMONSTRAÇÃO</span><div className="notice-wrap"><button className="notification" aria-label={`${notifications} notificações demonstrativas`} aria-expanded={noticesOpen} onClick={() => setNoticesOpen(!noticesOpen)}>♧<b>{notifications}</b></button>{noticesOpen ? <div className="notice-panel"><strong>Pendências demonstrativas</strong>{notices.slice(0, 12).map(({ appointment, kind }) => <button key={appointment.id} onClick={() => navigate(kind === "clinical" ? "professional" : kind === "blocked" ? "management" : "reception", appointment.day, appointment.id)}>{kind === "clinical" ? "Prontuário pendente" : kind === "blocked" ? "Confirmação bloqueada" : "Confirmar atendimento"}<small>{appointment.id} · {appointment.day} · {appointment.time}</small></button>)}{!notices.length ? <p>Nenhuma pendência notificada.</p> : null}</div> : null}</div><div className="identity"><span className="avatar">{role === "reception" ? "R" : role === "professional" ? "P" : role === "finance" ? "F" : "G"}</span><span><strong>{views.find((view) => view.id === role)?.title}</strong><small>Perfil simulado</small></span></div></div></header>

@@ -145,6 +145,33 @@ export function createSeed(): DemoState {
   };
 }
 
+/** Massa inteiramente fictícia para percorrer todos os estados no Preview. */
+export function createScenario(): DemoState {
+  const base = createSeed();
+  const appointments: Appointment[] = [
+    ...base.appointments,
+    { id: "a6", patientId: "p2", professionalId: "pr1", unitId: "u2", day: DEMO_DAY, time: "12:00", status: "absent" },
+    { id: "a7", patientId: "p4", professionalId: "pr1", unitId: "u1", day: DEMO_DAY, time: "13:00", status: "cancelled" },
+    { id: "a8", patientId: "p4", professionalId: "pr2", unitId: "u1", day: DEMO_DAY, time: "14:00", status: "confirmed", evolution: "Rascunho inteiramente fictício para teste de edição.", evolutionStatus: "draft" },
+    { id: "a9", patientId: "p2", professionalId: "pr2", unitId: "u2", day: DEMO_DAY, time: "16:00", status: "confirmed", evolution: "Evolução fictícia finalizada para demonstração.", evolutionStatus: "final" },
+    { id: "a10", patientId: "p1", professionalId: "pr2", unitId: "u2", day: DEMO_DAY, time: "17:00", status: "scheduled", exceptionReason: "Liberação fictícia previamente justificada pela gestão." },
+  ];
+  return {
+    ...base,
+    appointments,
+    financial: [
+      ...base.financial,
+      { id: "fin:a8", appointmentId: "a8", unitId: "u1", professionalId: "pr2", expectedRevenue: EXPECTED_REVENUE, payout: 18, revenueReceived: true, payoutPaid: false, createdAt: DEMO_TIME },
+      { id: "fin:a9", appointmentId: "a9", unitId: "u2", professionalId: "pr2", expectedRevenue: EXPECTED_REVENUE, payout: 18, revenueReceived: true, payoutPaid: true, createdAt: DEMO_TIME },
+    ],
+    policies: { ...base.policies, blockOnPriorPending: true },
+    audit: [
+      ...base.audit,
+      { id: "seed-scenario", at: DEMO_TIME, actor: "Sistema demonstrativo", action: "SCENARIO", detail: "Estados fictícios: falta, cancelamento, rascunho, evolução final, conciliações, bloqueio e exceção." },
+    ],
+  };
+}
+
 export function hasPriorPending(state: DemoState, appointment: Appointment): boolean {
   return state.appointments.some((other) =>
     other.id !== appointment.id &&

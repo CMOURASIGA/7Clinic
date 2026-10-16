@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { applyCommand, createSeed, executeForRole, notificationItems, pendingItems, totals } from "../lib/domain.ts";
+import { applyCommand, createScenario, createSeed, executeForRole, notificationItems, pendingItems, totals } from "../lib/domain.ts";
 import { filterFinance, type FinanceFilters } from "../lib/finance-selectors.ts";
+import { localRepository } from "../lib/local-repository.ts";
 
 test("confirmação libera prontuário e gera produção financeira antes da evolução", () => {
   const state = executeForRole(createSeed(), "reception", { type: "confirm", appointmentId: "a1", actor: "Recepção" });
@@ -164,4 +165,70 @@ test("reversão preserva histórico financeiro e não compõe saldo ou duplica r
   state = executeForRole(state, "reception", { type: "confirm", appointmentId: "a1", actor: "Recepção" });
   assert.equal(state.financial.filter((item) => item.appointmentId === "a1").length, 1);
   assert.equal(totals(state, "u2").expectedRevenue, 240);
+});
+
+test("cenário completo contém estados, unidades, conciliações e exceção sem duplicidade", () => {
+  const state = createScenario();
+  assert.deepEqual(new Set(state.appointments.map((item) => item.unitId)), new Set(["u1", "u2"]));
+  assert.deepEqual(new Set(state.appointments.map((item) => item.status)), new Set(["scheduled", "confirmed", "absent", "cancelled"]));
+  assert.ok(state.appointments.some((item) => item.evolutionStatus === "draft"));
+  assert.ok(state.appointments.some((item) => item.evolutionStatus === "final"));
+  assert.ok(state.financial.some((item) => item.revenueReceived && item.payoutPaid));
+  assert.ok(state.financial.some((item) => item.revenueReceived && !item.payoutPaid));
+  assert.ok(pendingItems(state).some((item) => item.kind === "blocked"));
+  assert.ok(state.appointments.some((item) => item.exceptionReason));
+  assert.equal(new Set(state.financial.map((item) => item.appointmentId)).size, state.financial.length);
+});
+
+test("persistência local recupera, migra histórico e reinicia massa fictícia", () => {
+  const values = new Map<string, string>();
+  const previous = globalThis.window;
+  Object.defineProperty(globalThis, "window", { configurable: true, value: { localStorage: {
+    getItem: (key: string) => values.get(key) ?? null,
+    setItem: (key: string, value: string) => { values.set(key, value); },
+    removeItem: (key: string) => { values.delete(key); },
+  } } });
+  try {
+    const state = createScenario();
+    localRepository.save(state);
+    assert.deepEqual(localRepository.load(), state);
+    const { financialReversals: _unused, ...legacy } = state;
+    assert.deepEqual(_unused, []);
+    values.set([...values.keys()][0], JSON.stringify(legacy));
+    assert.deepEqual(localRepository.load().financialReversals, []);
+    localRepository.clear();
+    assert.equal(localRepository.load().appointments.length, state.appointments.length);
+  } finally {
+    if (previous === undefined) Reflect.deleteProperty(globalThis, "window");
+    else Object.defineProperty(globalThis, "window", { configurable: true, value: previous });
+  }
+});
+
+test("papéis simulados impedem ações fora da responsabilidade", () => {
+  const state = createScenario();
+  assert.throws(() => executeForRole(state, "reception", { type: "settle", entryId: "fin:a3", field: "payoutPaid", actor: "Recepção" }), /indisponível/);
+  assert.throws(() => executeForRole(state, "finance", { type: "policy", key: "blockOnPriorPending", enabled: false, actor: "Financeiro" }), /indisponível/);
+  assert.throws(() => executeForRole(state, "management", { type: "settle", entryId: "fin:a3", field: "payoutPaid", actor: "Gestão" }), /indisponível/);
+  assert.throws(() => executeForRole(state, "professional", { type: "confirm", appointmentId: "a1", actor: "Profissional" }), /indisponível/);
+});
+
+test("homologação integrada percorre bloqueio, exceção, clínica, conciliação e reversão", () => {
+  let state = createScenario();
+  assert.throws(() => executeForRole(state, "reception", { type: "confirm", appointmentId: "a5", actor: "Recepção" }), /Bloqueio/);
+  state = executeForRole(state, "management", { type: "exception", appointmentId: "a5", reason: "Exceção fictícia autorizada", actor: "Gestão" });
+  state = executeForRole(state, "reception", { type: "confirm", appointmentId: "a5", actor: "Recepção" });
+  assert.equal(state.financial.filter((item) => item.appointmentId === "a5").length, 1);
+  state = executeForRole(state, "professional", { type: "saveDraft", appointmentId: "a5", professionalId: "pr1", note: "Evolução fictícia da exceção", actor: "Profissional" });
+  state = executeForRole(state, "professional", { type: "finalizeEvolution", appointmentId: "a5", professionalId: "pr1", actor: "Profissional" });
+  state = executeForRole(state, "finance", { type: "settle", entryId: "fin:a5", field: "revenueReceived", actor: "Financeiro" });
+  assert.equal(totals(state, "u1").receivedRevenue, 240);
+  assert.throws(() => executeForRole(state, "reception", { type: "reverse", appointmentId: "a5", reason: "Confirmação simulada incorreta", actor: "Recepção" }), /evolução clínica/);
+  state = executeForRole(state, "professional", { type: "voidEvolution", appointmentId: "a5", professionalId: "pr1", reason: "Registro fictício substituído", actor: "Profissional" });
+  assert.throws(() => executeForRole(state, "reception", { type: "reverse", appointmentId: "a5", reason: "Confirmação simulada incorreta", actor: "Recepção" }), /conciliado/);
+  state = executeForRole(state, "finance", { type: "reopenSettlement", entryId: "fin:a5", field: "revenueReceived", reason: "Recebimento fictício revertido", actor: "Financeiro" });
+  state = executeForRole(state, "reception", { type: "reverse", appointmentId: "a5", reason: "Confirmação simulada incorreta", actor: "Recepção" });
+  assert.equal(state.financial.some((item) => item.appointmentId === "a5"), false);
+  assert.equal(state.financialReversals.filter((item) => item.appointmentId === "a5").length, 1);
+  assert.equal(totals(state, "u1").receivedRevenue, 120);
+  assert.equal(pendingItems(state).find((item) => item.appointment.id === "a5")?.kind, "blocked");
 });

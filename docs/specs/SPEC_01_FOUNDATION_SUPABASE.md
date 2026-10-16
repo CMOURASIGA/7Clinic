@@ -1,7 +1,7 @@
 # SPEC 01 | FOUNDATION SUPABASE
 
-**Estado:** PLANNED, não autorizada.
-**Pré-requisito:** SPEC 00 APPROVED com aceite expresso.
+**Estado:** preparação arquitetural autorizada; implementação e provisionamento pendentes de aprovação.
+**Pré-requisito para implementar:** aprovação da arquitetura, definição das decisões abertas e integração técnica da SPEC 00 autorizada. A Human Validation integrada da SPEC 00 fica adiada para antes de qualquer operação real.
 
 ## Objetivo
 Arquitetura Next.js App Router, TypeScript, Tailwind, Supabase com RLS e deploy Vercel.
@@ -23,4 +23,4 @@ RLS testado com usuários cruzados, migração reversível, build e plano de rec
 5. Evidências com Preview, SHA, testes e matriz PASS/FAIL/NOT TESTED.
 
 ## Restrições
-Não iniciar sem autorização, não fazer merge sem Human Validation, não usar dados reais no Preview público. Detalhes ainda não definidos devem virar decisões explícitas, nunca suposições do desenvolvedor.
+Não provisionar banco definitivo antes da aprovação da arquitetura. Não fazer merge automático nem declarar a SPEC 00 APPROVED sem homologação. Não usar dados reais no Preview público. Detalhes ainda não definidos devem virar decisões explícitas, nunca suposições do desenvolvedor. Ver `docs/specs/SPEC_01_PREPARACAO_TECNICA.md`.

@@ -64,7 +64,7 @@ export function Reception({ state, unit, onUnit, selectedDay, onDay, run, onMana
       </form> : null}
       <div className="filters"><input aria-label="Buscar paciente" placeholder="Buscar paciente fictício" value={query} onChange={(event) => setQuery(event.target.value)}/><input aria-label="Filtrar data" type="date" value={selectedDay} onChange={(event) => onDay(event.target.value)}/><select aria-label="Filtrar status" value={filter} onChange={(event) => setFilter(event.target.value)}><option value="all">Todos os status</option><option value="scheduled">A confirmar</option><option value="confirmed">Confirmado</option><option value="absent">Falta</option><option value="cancelled">Cancelado</option></select></div>
       <div className="appointment-list">{appointments.length ? appointments.map((item) => {
-        const blocked = state.policies.blockOnPriorPending && hasPriorPending(state, item) && !item.exceptionReason;
+        const blocked = item.status === "scheduled" && state.policies.blockOnPriorPending && hasPriorPending(state, item) && !item.exceptionReason;
         return <article className="appointment" key={item.id}>
           <div className="appointment-time"><strong>{item.time}</strong><small>{item.day.split("-").reverse().join("/")}</small></div>
           <div className="appointment-details"><strong>{patientName(state, item)}</strong><small>{professionalName(state, item)} · {UNIT_NAMES[item.unitId]} · {state.patients.find((patient) => patient.id === item.patientId)?.insurance}</small>{blocked ? <em>Bloqueado: confirmação anterior pendente. Gestão pode liberar.</em> : null}{item.exceptionReason ? <em>Liberação excepcional registrada</em> : null}</div>

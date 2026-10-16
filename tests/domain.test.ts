@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { applyCommand, createSeed, executeForRole, totals } from "../lib/domain.ts";
+import { applyCommand, createSeed, executeForRole, notificationItems, pendingItems, totals } from "../lib/domain.ts";
 
 test("confirmação libera prontuário e gera produção financeira antes da evolução", () => {
   const state = executeForRole(createSeed(), "reception", { type: "confirm", appointmentId: "a1", actor: "Recepção" });
@@ -115,4 +115,27 @@ test("conciliação exige reabertura financeira antes da reversão", () => {
   state = executeForRole(state, "finance", { type: "reopenSettlement", entryId: "fin:a3", field: "payoutPaid", reason: "Pagamento simulado incorreto", actor: "Financeiro" });
   state = executeForRole(state, "reception", { type: "reverse", appointmentId: "a3", reason: "Confirmação incorreta", actor: "Recepção" });
   assert.equal(state.financial.length, 0);
+});
+
+test("fluxo integrado atualiza pendências, supervisão e financeiro em cada ambiente", () => {
+  let state = createSeed();
+  state = executeForRole(state, "reception", { type: "transfer", appointmentId: "a1", unitId: "u2", actor: "Recepção" });
+  state = executeForRole(state, "reception", { type: "confirm", appointmentId: "a1", actor: "Recepção" });
+  assert.equal(totals(state, "u2").expectedRevenue, 240);
+  assert.equal(pendingItems(state, "u2").find((item) => item.appointment.id === "a1")?.kind, "clinical");
+  state = executeForRole(state, "professional", { type: "saveDraft", appointmentId: "a1", professionalId: "pr1", note: "Evolução fictícia em rascunho", actor: "Profissional" });
+  assert.equal(totals(state, "u2").clinicalPending, 2);
+  state = executeForRole(state, "professional", { type: "finalizeEvolution", appointmentId: "a1", professionalId: "pr1", actor: "Profissional" });
+  assert.equal(totals(state, "u2").clinicalPending, 1);
+  assert.equal(state.financial.filter((item) => item.appointmentId === "a1").length, 1);
+  state = executeForRole(state, "finance", { type: "settle", entryId: "fin:a1", field: "revenueReceived", actor: "Financeiro" });
+  assert.equal(totals(state, "u2").receivedRevenue, 120);
+  state = executeForRole(state, "management", { type: "policy", key: "notifyOnClinicalPending", enabled: false, actor: "Gestão" });
+  assert.equal(notificationItems(state).some((item) => item.kind === "clinical"), false);
+});
+
+test("correção de falta não reabre horário já ocupado", () => {
+  let state = executeForRole(createSeed(), "reception", { type: "absence", appointmentId: "a1", actor: "Recepção" });
+  state = executeForRole(state, "reception", { type: "schedule", patientId: "p4", professionalId: "pr1", unitId: "u1", day: "2026-10-16", time: "08:00", actor: "Recepção" });
+  assert.throws(() => executeForRole(state, "reception", { type: "reverse", appointmentId: "a1", reason: "Corrigir ausência simulada", actor: "Recepção" }), /Horário ocupado/);
 });

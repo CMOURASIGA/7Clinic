@@ -237,6 +237,7 @@ export function applyCommand(state: DemoState, command: Command): DemoState {
     if (appointment.status === "cancelled") throw new Error("Atendimento já cancelado.");
     if (command.type === "reverse" && appointment.status === "scheduled") throw new Error("Atendimento já está agendado.");
     if (appointment.evolution) throw new Error("Existe evolução clínica. O profissional deve tratar explicitamente o registro antes da reversão.");
+    if (command.type === "reverse" && conflict(state, appointment.id, appointment.patientId, appointment.professionalId, appointment.day, appointment.time)) throw new Error("Horário ocupado. Reagende o atendimento conflitante antes de desfazer a falta.");
     const entry = state.financial.find((item) => item.appointmentId === appointment.id);
     if (entry?.revenueReceived || entry?.payoutPaid) throw new Error("Lançamento já conciliado. A gestão precisa tratar o financeiro antes desta reversão.");
     return { ...state,
@@ -357,4 +358,21 @@ export function totals(state: DemoState, unit: UnitId | "all") {
     receivedRevenue: financial.filter((item) => item.revenueReceived).reduce((sum, item) => sum + item.expectedRevenue, 0),
     payoutDue: financial.filter((item) => !item.payoutPaid).reduce((sum, item) => sum + item.payout, 0),
   };
+}
+
+export interface PendingItem {
+  appointment: Appointment;
+  kind: "confirmation" | "clinical" | "blocked";
+}
+
+export function pendingItems(state: DemoState, unit: UnitId | "all" = "all"): PendingItem[] {
+  return state.appointments.filter((item) => unit === "all" || item.unitId === unit).flatMap((appointment): PendingItem[] => {
+    if (appointment.status === "scheduled") return [{ appointment, kind: state.policies.blockOnPriorPending && hasPriorPending(state, appointment) && !appointment.exceptionReason ? "blocked" as const : "confirmation" as const }];
+    if (appointment.status === "confirmed" && appointment.evolutionStatus !== "final" && !(appointment.evolution && !appointment.evolutionStatus)) return [{ appointment, kind: "clinical" as const }];
+    return [];
+  });
+}
+
+export function notificationItems(state: DemoState, unit: UnitId | "all" = "all"): PendingItem[] {
+  return pendingItems(state, unit).filter((item) => item.kind === "clinical" ? state.policies.notifyOnClinicalPending : state.policies.notifyOnConfirmationPending);
 }

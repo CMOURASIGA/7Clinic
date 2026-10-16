@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { hasPriorPending, totals, type Command, type DemoState, type UnitId, UNIT_NAMES } from "../lib/domain";
+import { hasPriorPending, pendingItems, totals, type Command, type DemoState, type UnitId, UNIT_NAMES } from "../lib/domain";
 import { money, patientName, Stat, UnitPicker } from "./shared";
 
 export function Management({ state, unit, onUnit, run, financeOnly = false }: { state: DemoState; unit: UnitId | "all"; onUnit: (unit: UnitId | "all") => void; run: (command: Command) => void; financeOnly?: boolean }) {
@@ -10,6 +10,7 @@ export function Management({ state, unit, onUnit, run, financeOnly = false }: { 
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState("");
   const summary = totals(state, unit);
+  const pending = pendingItems(state, unit);
   const entries = state.financial.filter((item) => unit === "all" || item.unitId === unit);
   const blocked = state.policies.blockOnPriorPending ? state.appointments.filter((item) => item.status === "scheduled" && !item.exceptionReason && hasPriorPending(state, item) && (unit === "all" || item.unitId === unit)) : [];
   const byProfessional = state.professionals.map((professional) => ({
@@ -37,8 +38,9 @@ export function Management({ state, unit, onUnit, run, financeOnly = false }: { 
   return <>
     <div className="view-header"><div><span className="kicker">GESTÃO · VISÃO DEMONSTRATIVA</span><h1>Painel de gestão</h1><p>Operação e pendências por unidade ou consolidado.</p></div><UnitPicker value={unit} onChange={onUnit}/></div>
     <div className="stats"><Stat label="Confirmados" value={summary.confirmed} note="Atendimentos únicos"/><Stat label="Agendados" value={summary.scheduled} note="Aguardando confirmação"/><Stat label="Faltas" value={summary.absent} note="Registradas na recepção"/><Stat label="Pendências clínicas" value={summary.clinicalPending} note="Sem bloquear o financeiro"/></div>
+    <section className="surface"><div className="section-heading"><div><h2>Supervisão financeira</h2><p>Indicadores consolidados, com operação detalhada no ambiente Financeiro.</p></div></div><div className="stats"><Stat label="Produção prevista" value={money(summary.expectedRevenue)} note="Atendimentos confirmados"/><Stat label="Recebido" value={money(summary.receivedRevenue)} note="Conciliação simulada"/><Stat label="Repasses a pagar" value={money(summary.payoutDue)} note="Sem dependência do prontuário"/></div></section>
     <section className="surface"><h2>Unidades</h2>{(["u1", "u2"] as const).map((id) => { const item = totals(state, id); return <div className="unit-summary" key={id}><strong>{UNIT_NAMES[id]}</strong><span>{item.confirmed} confirmados · {item.absent} faltas · {item.clinicalPending} evoluções pendentes</span></div>; })}</section>
-    <section className="surface"><div className="section-heading"><div><h2>Acompanhamento de pendências</h2><p>Confirmações e evoluções desta visão, sem conteúdo clínico.</p></div></div><div className="pending-grid">{state.appointments.filter((item) => (unit === "all" || item.unitId === unit) && (item.status === "scheduled" || (item.status === "confirmed" && !item.evolution))).map((item) => <div className="pending-card" key={item.id}><span className="dot"/><div><strong>{item.status === "scheduled" ? "Confirmar atendimento" : "Evolução pendente"}</strong><small>{patientName(state, item)} · {UNIT_NAMES[item.unitId]} · {item.time}</small></div></div>)}</div></section>
+    <section className="surface"><div className="section-heading"><div><h2>Acompanhamento de pendências</h2><p>Confirmações e evoluções desta visão, sem conteúdo clínico.</p></div></div><div className="pending-grid">{pending.map(({ appointment: item, kind }) => <div className="pending-card" key={item.id}><span className="dot"/><div><strong>{kind === "blocked" ? "Confirmação bloqueada" : kind === "confirmation" ? "Confirmar atendimento" : "Evolução pendente"}</strong><small>{patientName(state, item)} · {UNIT_NAMES[item.unitId]} · {item.day} {item.time}</small></div></div>)}{!pending.length ? <p className="muted">Nenhuma pendência nesta visão.</p> : null}</div></section>
     <div className="split">
       <section className="surface"><div className="section-heading"><div><h2>Regras e notificações</h2><p>Configuração da gestão com trilha de auditoria.</p></div></div><div className="settings">
         {([["blockOnPriorPending", "Bloquear confirmação se houver atendimento anterior pendente"],["notifyOnClinicalPending", "Alertar evolução clínica pendente"],["notifyOnConfirmationPending", "Alertar confirmação pendente"]] as const).map(([key, label]) => <label className="toggle" key={key}><span>{label}</span><input type="checkbox" checked={state.policies[key]} onChange={(event) => run({ type: "policy", key, enabled: event.target.checked, actor: "Gestão demonstrativa" })}/></label>)}

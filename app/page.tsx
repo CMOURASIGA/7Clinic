@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Management } from "../components/management";
 import { ProfessionalView } from "../components/professional";
 import { Reception } from "../components/reception";
-import { createSeed, DEMO_DAY, executeForRole, type Command, type DemoState, type Role, type UnitId } from "../lib/domain";
+import { createSeed, DEMO_DAY, executeForRole, notificationItems, type Command, type DemoState, type Role, type UnitId } from "../lib/domain";
 import { localRepository } from "../lib/local-repository";
 
 const views: { id: Role; title: string }[] = [
@@ -60,8 +60,7 @@ export default function Home() {
     setMessage({ text: "Demonstração reiniciada.", error: false });
   }
 
-  const notifications = state.appointments.filter((item) => item.status === "scheduled" && state.policies.notifyOnConfirmationPending).length
-    + state.appointments.filter((item) => item.status === "confirmed" && item.evolutionStatus !== "final" && !(!item.evolutionStatus && item.evolution) && state.policies.notifyOnClinicalPending).length;
+  const notifications = notificationItems(state).length;
 
   if (!ready) return <div className="loading">Preparando a demonstração do 7Clinic...</div>;
 

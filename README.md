@@ -4,6 +4,12 @@ Sistema de gestão clínica da Clínica Movimentar-se. Documentação técnica, 
 
 Início obrigatório: [Plano mestre](docs/PLANO_MESTRE.md) → [Governança](docs/GOVERNANCA.md) → [SPEC 00](docs/specs/SPEC_00_MVP_OPERACIONAL.md).
 
-**A SPEC 01 (banco Supabase definitivo) depende de homologação formal da SPEC 00.** Nenhuma SPEC está autorizada para desenvolvimento neste momento.
+**A SPEC 00 está em desenvolvimento na branch `feat/spec-00-mvp-operacional`. A SPEC 01 (banco Supabase definitivo) depende de homologação formal da SPEC 00 e não está autorizada.**
 
 Repositório público: não publicar credenciais, dados clínicos, contratos ou arquivos legados.
+
+## MVP demonstrativo
+
+`npm install`, `npm run dev`. Para verificar: `npm test`, `npm run typecheck`, `npm run lint`, `npm run build`.
+
+O MVP é local-first, usa apenas dados fictícios e persiste o estado no navegador. A troca de perfil demonstra as telas, mas **não substitui autenticação ou autorização segura**. Não cadastrar pacientes nem evoluções reais. O roteiro e as limitações estão em [Checkpoint 02](docs/checkpoints/SPEC_00_CHECKPOINT_02.md).

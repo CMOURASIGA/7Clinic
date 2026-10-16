@@ -1,62 +1,72 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
+import { Management } from "../components/management";
+import { ProfessionalView } from "../components/professional";
+import { Reception } from "../components/reception";
+import { createSeed, executeForRole, type Command, type DemoState, type Role, type UnitId } from "../lib/domain";
+import { localRepository } from "../lib/local-repository";
 
-type Area = "recepcao" | "profissional" | "gestao";
-
-const areas: { id: Area; label: string; icon: string }[] = [
-  { id: "recepcao", label: "Recepção", icon: "◫" },
-  { id: "profissional", label: "Profissional", icon: "♙" },
-  { id: "gestao", label: "Gestão", icon: "◉" }
+const views: { id: Role; title: string; symbol: string }[] = [
+  { id: "reception", title: "Recepção", symbol: "▦" },
+  { id: "professional", title: "Profissionais", symbol: "♙" },
+  { id: "management", title: "Gestão", symbol: "◫" },
 ];
 
-const content: Record<Area, { title: string; text: string; cards: [string,string,string][]; agenda: [string,string,string,string][]; pendencias: [string,string][] }> = {
-  recepcao: {
-    title: "Painel da Recepção",
-    text: "Acompanhe a agenda, confirmações e pendências das duas unidades.",
-    cards: [["Agenda de hoje","18","3 aguardando confirmação"],["Confirmados","12","+ 2 desde ontem"],["Pendências","4","2 exigem ação"],["Transferências","1","Sem duplicidade"]],
-    agenda: [["08:00","Maria Oliveira","Fisioterapia · Unidade I","Confirmado"],["09:00","Rafael Santos","Pilates · Unidade I","A confirmar"],["10:00","Ana Beatriz","Fisioterapia · Unidade II","Confirmado"],["11:00","Carlos Mendes","Ortopedia · Unidade I","A confirmar"]],
-    pendencias: [["Confirmações pendentes","2 atendimentos aguardam contato"],["Transferência para Unidade II","Paciente Rafael Santos, hoje às 09:00"],["Bloqueio de agenda","1 regra ativa para confirmação pendente"]]
-  },
-  profissional: {
-    title: "Agenda da Profissional",
-    text: "Visão individual de atendimentos liberados para evolução clínica.",
-    cards: [["Atendimentos hoje","7","5 confirmados"],["Prontuários pendentes","2","Ação necessária"],["Evoluções concluídas","5","Hoje"],["Minha produção","R$ 126","7 consultas confirmadas"]],
-    agenda: [["08:00","Maria Oliveira","Evolução disponível","Confirmado"],["09:30","Bruno Lima","Aguardando confirmação","A confirmar"],["10:30","Ana Beatriz","Evolução disponível","Confirmado"],["14:00","Fernanda Souza","Prontuário pendente","Confirmado"]],
-    pendencias: [["Prontuário pendente","Maria Oliveira · atendimento de 15/10"],["Evolução a concluir","Fernanda Souza · atendimento de hoje"],["Acesso clínico","Somente pacientes vinculados à sua agenda"]]
-  },
-  gestao: {
-    title: "Painel de Gestão",
-    text: "Indicadores operacionais e financeiros consolidados da clínica.",
-    cards: [["Atendimentos","36","18 por unidade"],["Receita prevista","R$ 5.760","Convênios no período"],["Repasses","R$ 648","R$ 18 por consulta"],["Pendências","6","3 clínicas, 3 operacionais"]],
-    agenda: [["08:00","Unidade I","9 atendimentos confirmados","Em operação"],["09:00","Unidade II","7 atendimentos confirmados","Em operação"],["10:00","Financeiro","36 lançamentos de produção","Conferir"],["14:00","Pendências","3 prontuários sem evolução","Acompanhar"]],
-    pendencias: [["Regra de bloqueio","Confirmação pendente ativa"],["Liberação excepcional","1 solicitação aguardando justificativa"],["Contas a receber","2 guias previstas para conciliação"]]
-  }
-};
-
 export default function Home() {
-  const [area, setArea] = useState<Area>("recepcao");
-  const [unit, setUnit] = useState("Visão consolidada");
-  const view = useMemo(() => content[area], [area]);
+  const [state, setState] = useState<DemoState>(createSeed);
+  const [ready, setReady] = useState(false);
+  const [role, setRole] = useState<Role>("reception");
+  const [unit, setUnit] = useState<UnitId | "all">("all");
+  const [message, setMessage] = useState<{ text: string; error: boolean } | null>(null);
 
-  return <main className="app">
-    <aside className="side">
-      <div className="brand"><div className="mark">7</div><div><b>7Clinic</b><small>Clínica Movimentar-se</small></div></div>
-      <div className="role">Modo demonstrativo · dados sintéticos</div>
-      <nav className="nav">
-        {areas.map(item => <button key={item.id} onClick={() => setArea(item.id)} className={area === item.id ? "active" : ""}>{item.icon} &nbsp;{item.label}</button>)}
-        <button>▦ &nbsp;Pacientes</button><button>◷ &nbsp;Pendências</button><button>⚙ &nbsp;Configurações</button>
-      </nav>
-      <div className="calendar"><h3>OUTUBRO 2026</h3><div className="week">{["D","S","T","Q","Q","S","S"].map((d,i)=><span key={i}>{d}</span>)}{Array.from({length:31},(_,i)=><span key={i} className={"day "+(i===15?"today":"")}>{i+1}</span>)}</div></div>
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setState(localRepository.load());
+      setReady(true);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+  useEffect(() => { if (ready) localRepository.save(state); }, [state, ready]);
+
+  function run(command: Command) {
+    try {
+      const next = executeForRole(state, role, command);
+      setState(next);
+      setMessage({ text: next === state ? "Ação já registrada. Nenhuma duplicidade gerada." : "Ação registrada na demonstração.", error: false });
+      return true;
+    } catch (error) {
+      setMessage({ text: error instanceof Error ? error.message : "Não foi possível executar a ação.", error: true });
+      return false;
+    }
+  }
+
+  function reset() {
+    if (!window.confirm("Reiniciar todos os dados fictícios desta demonstração neste navegador?")) return;
+    localRepository.clear();
+    setState(createSeed());
+    setMessage({ text: "Demonstração reiniciada.", error: false });
+  }
+
+  const notifications = state.appointments.filter((item) => item.status === "scheduled" && state.policies.notifyOnConfirmationPending).length
+    + state.appointments.filter((item) => item.status === "confirmed" && !item.evolution && state.policies.notifyOnClinicalPending).length;
+
+  if (!ready) return <div className="loading">Preparando a demonstração do 7Clinic...</div>;
+
+  return <div className="shell">
+    <aside className="sidebar">
+      <div className="brand"><div className="brand-symbol">7</div><div><strong>7Clinic</strong><small>CLÍNICA MOVIMENTAR-SE</small></div></div>
+      <div className="side-section">AMBIENTES</div>
+      <nav aria-label="Ambientes" className="nav-links">{views.map((view) => <button key={view.id} className={role === view.id ? "active" : ""} onClick={() => { setRole(view.id); setMessage(null); }}><span aria-hidden="true">{view.symbol}</span>{view.title}</button>)}</nav>
+      <div className="side-bottom"><div className="calendar-box"><div className="calendar-head"><strong>Outubro 2026</strong><span>◀ &nbsp; ▶</span></div><div className="calendar-days">{["D","S","T","Q","Q","S","S"].map((day, index) => <b key={index}>{day}</b>)}{Array.from({ length: 4 }, (_, index) => <i key={`empty-${index}`}/>)}{Array.from({ length: 31 }, (_, index) => <span key={index} className={index + 1 === 16 ? "today" : ""}>{index + 1}</span>)}</div></div><button className="reset" onClick={reset}>↺ &nbsp; Reiniciar demonstração</button></div>
     </aside>
-    <section className="main">
-      <header className="top"><div className="crumb">7Clinic / {areas.find(a=>a.id===area)?.label} / Visão geral</div><div className="user"><span className="bell">♧<i className="badge">3</i></span><span className="avatar">CM</span><span>Christian Moura<br/><small>Administrador</small></span></div></header>
-      <div className="content">
-        <div className="heading"><div><h1>{view.title}</h1><p>{view.text}</p></div><select className="select" value={unit} onChange={e=>setUnit(e.target.value)}><option>Visão consolidada</option><option>Unidade I</option><option>Unidade II</option></select></div>
-        <div className="cards">{view.cards.map(([label,value,trend])=><div className="card" key={label}><div className="label">{label}</div><div className="metric">{value}</div><div className="trend">{trend}</div></div>)}</div>
-        <div className="grid"><div className="panel"><div className="panel-head"><h2>Agenda de hoje · 16 de outubro</h2><button className="link">Ver agenda completa</button></div><div className="rows">{view.agenda.map(([time,name,desc,status])=><div className="row" key={time+name}><div className="time">{time}</div><div><b>{name}</b><span className="sub">{desc}</span></div><div className="mini">{unit}</div><span className={"pill "+(status==="A confirmar"||status==="Acompanhar"?"warn":"")}>{status}</span></div>)}</div></div>
-        <div className="panel"><div className="panel-head"><h2>Pendências</h2><button className="link">Central</button></div><div className="pending">{view.pendencias.map(([title,desc])=><div className="pending-item" key={title}><strong>{title}</strong><span className="mini">{desc}</span></div>)}<button className="maia"><small>MAIA · MODO DEMONSTRATIVO</small><strong>Posso resumir as pendências?</strong><span>Respostas simuladas, sem IA externa.</span></button></div></div></div>
-      </div>
-    </section>
-  </main>;
+    <div className="workspace">
+      <header className="topbar"><div className="breadcrumb">7Clinic <span>/</span> {views.find((view) => view.id === role)?.title}</div><div className="top-right"><span className="demo-tag">● &nbsp; DEMONSTRAÇÃO</span><span className="notification" aria-label={`${notifications} notificações demonstrativas`}>♧<b>{notifications}</b></span><div className="identity"><span className="avatar">{role === "reception" ? "R" : role === "professional" ? "P" : "G"}</span><span><strong>{role === "reception" ? "Recepção" : role === "professional" ? "Profissional" : "Gestão"}</strong><small>Perfil simulado</small></span></div></div></header>
+      <main className="page-content">
+        {message ? <div className={`toast ${message.error ? "toast-error" : ""}`} role="status">{message.text}<button aria-label="Fechar aviso" onClick={() => setMessage(null)}>×</button></div> : null}
+        {role === "reception" ? <Reception state={state} unit={unit} onUnit={setUnit} run={run}/> : role === "professional" ? <ProfessionalView state={state} unit={unit} onUnit={setUnit} run={run}/> : <Management state={state} unit={unit} onUnit={setUnit} run={run}/>}
+        <footer className="footer">7Clinic · SPEC 00 · dados 100% fictícios · persistência somente neste navegador · não utilizar para atendimento real</footer>
+      </main>
+    </div>
+  </div>;
 }

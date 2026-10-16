@@ -1,6 +1,6 @@
 # SPEC 01 | Matriz de decisões e plano incremental
 
-**Estado:** proposta para aprovação. Base: SPEC 00 integrada tecnicamente em `develop` pelo PR #1. Human Validation integrada adiada. Nenhuma decisão desta matriz autoriza carga real, migração definitiva ou provisionamento.
+**Estado:** aprovada como base de arquitetura com ressalvas em 16/10/2026; CP-01 autorizado. Base: SPEC 00 integrada tecnicamente em `develop` pelo PR #1. Human Validation integrada adiada. Nenhuma decisão desta matriz autoriza carga real, migração definitiva ou provisionamento. ADRs e detalhamento do CP-01 em `SPEC_01_CP01_ADRS_ESTADOS.md` e documentos relacionados.
 
 **Legenda:** DT = decisão técnica recomendada; DN = decisão de negócio da clínica; SP = segurança ou privacidade; DI = dependência para implementação; DP = dependência apenas para produção. Cada linha indica quem deve decidir e o ponto de bloqueio. O caminho recomendado é uma proposta, não uma regra clínica aprovada.
 
@@ -22,7 +22,7 @@
 
 ## Checkpoints propostos
 
-Cada checkpoint entrega SHA, Preview sintético, matriz PASS/FAIL/NOT TESTED e gates de testes, typecheck, lint, build e smoke desktop/mobile. Os checkpoints são incrementais na branch da SPEC 01 e dependem da aprovação da matriz e plano antes de implementar ou provisionar.
+Cada checkpoint entrega SHA, Preview sintético quando há alteração de aplicação, matriz PASS/FAIL/NOT TESTED e gates de testes, typecheck, lint, build e smoke desktop/mobile conforme escopo. CP-01 é somente documental. CP-02 depende de nova autorização de implementação e provisionamento.
 
 | Etapa | Entrega verificável | Dependência e gate |
 | --- | --- | --- |
@@ -34,7 +34,7 @@ Cada checkpoint entrega SHA, Preview sintético, matriz PASS/FAIL/NOT TESTED e g
 
 ## Mínimo para iniciar implementação da SPEC 01
 
-1. Aprovação expressa desta matriz e da divisão em checkpoints, com responsáveis pelas decisões de negócio e privacidade.
+1. Matriz aprovada como base com ressalvas; ainda faltam responsáveis formais pelas decisões de negócio e privacidade e aceite das hipóteses correspondentes.
 2. Definições D01–D05 e D08 suficientes para as tabelas e permissões de CP-02; D06–D07 antes de CP-04. Separação dos ambientes e orçamento de D10 aprovados antes de provisionar.
 3. Escopo do CP-02 autorizado separadamente, inclusive projeto/região de desenvolvimento e custos. Somente dados sintéticos.
 4. Critérios de RLS, teste de restauração e rollback aceitos. A Human Validation integrada da SPEC 00 continua pendente para antes da operação real.

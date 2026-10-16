@@ -1,7 +1,7 @@
 # SPEC 00 | MVP OPERACIONAL
 
-**Estado:** PLANNED, não autorizada.
-**Pré-requisito:** aprovação para iniciar protótipo.
+**Estado:** IN DEVELOPMENT, autorizada em 16/10/2026.
+**Pré-requisito:** aprovação para iniciar protótipo, cumprido. Checkpoints em andamento, sem autorização de merge.
 
 ## Objetivo
 Protótipo local-first sem dados reais, com três ambientes e Maia simulada.

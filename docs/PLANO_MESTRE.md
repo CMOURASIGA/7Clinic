@@ -13,7 +13,7 @@ Duas unidades, três ambientes (recepção, profissionais, gestão), whitelabel 
 - Maia é demonstrativa no MVP, não clínica nem conectada a IA real.
 
 ## Gates
-SPEC 00 → aceite do MVP → SPEC 01 banco definitivo → SPECs 02 a 09 → SPEC 10 go-live.
+SPEC 00 tecnicamente completa → smoke básico → preparação e aprovação arquitetural da SPEC 01 → implementação autorizada → SPECs posteriores → Human Validation integrada antes de operação real. Integração de branches e provisionamento exigem autorizações próprias; conclusão técnica não equivale à homologação funcional.
 
 ## Cronograma-alvo
 Out/2026 definição e MVP; nov/2026 base; dez/2026 integrações; jan/2027 homologação; fev/2027 produção, sujeito a aceite e dependências.

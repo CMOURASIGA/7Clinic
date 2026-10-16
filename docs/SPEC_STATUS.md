@@ -1,6 +1,6 @@
 # Status
 
-- SPEC 00 MVP_OPERACIONAL: **PLANNED**
+- SPEC 00 MVP_OPERACIONAL: **IN DEVELOPMENT**
 - SPEC 01 FOUNDATION_SUPABASE: **PLANNED**
 - SPEC 02 IDENTIDADE_RBAC_WHITELABEL: **PLANNED**
 - SPEC 03 CADASTROS_UNIDADES_LEGADO: **PLANNED**
@@ -12,4 +12,4 @@
 - SPEC 09 MAIA_DEMONSTRATIVA: **PLANNED**
 - SPEC 10 HOMOLOGACAO_GO_LIVE: **PLANNED**
 
-Apenas documentação publicada. Nenhum código de produto ou banco definitivo autorizado.
+SPEC 00 autorizada em 16/10/2026 e iniciada exclusivamente com o Checkpoint 01. Nenhuma SPEC subsequente está autorizada.

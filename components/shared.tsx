@@ -14,7 +14,7 @@ export function professionalName(state: DemoState, appointment: Appointment) {
 }
 
 export function statusLabel(status: Appointment["status"]) {
-  return { scheduled: "A confirmar", confirmed: "Confirmado", absent: "Falta" }[status];
+  return { scheduled: "A confirmar", confirmed: "Confirmado", absent: "Falta", cancelled: "Cancelado" }[status];
 }
 
 export function Status({ status }: { status: Appointment["status"] }) {

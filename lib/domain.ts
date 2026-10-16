@@ -1,6 +1,6 @@
 export type UnitId = "u1" | "u2";
-export type Role = "reception" | "professional" | "management";
-export type AppointmentStatus = "scheduled" | "confirmed" | "absent";
+export type Role = "reception" | "professional" | "management" | "finance";
+export type AppointmentStatus = "scheduled" | "confirmed" | "absent" | "cancelled";
 
 export interface Patient {
   id: string;
@@ -25,6 +25,8 @@ export interface Appointment {
   time: string;
   status: AppointmentStatus;
   evolution?: string;
+  evolutionStatus?: "draft" | "final";
+  amendments?: { at: string; note: string }[];
   exceptionReason?: string;
 }
 
@@ -76,12 +78,21 @@ export type Command =
   | { type: "schedule"; patientId: string; professionalId: string; unitId: UnitId; day: string; time: string; actor: string }
   | { type: "confirm"; appointmentId: string; actor: string }
   | { type: "absence"; appointmentId: string; actor: string }
+  | { type: "editAppointment"; appointmentId: string; day: string; time: string; professionalId: string; unitId: UnitId; reason: string; actor: string }
+  | { type: "reverse"; appointmentId: string; reason: string; actor: string }
+  | { type: "cancel"; appointmentId: string; reason: string; actor: string }
   | { type: "transfer"; appointmentId: string; unitId: UnitId; actor: string }
   | { type: "evolve"; appointmentId: string; professionalId: string; note: string; actor: string }
+  | { type: "saveDraft"; appointmentId: string; professionalId: string; note: string; actor: string }
+  | { type: "finalizeEvolution"; appointmentId: string; professionalId: string; actor: string }
+  | { type: "amendEvolution"; appointmentId: string; professionalId: string; note: string; actor: string }
+  | { type: "discardDraft"; appointmentId: string; professionalId: string; reason: string; actor: string }
+  | { type: "voidEvolution"; appointmentId: string; professionalId: string; reason: string; actor: string }
   | { type: "exception"; appointmentId: string; reason: string; actor: string }
   | { type: "policy"; key: keyof Policies; enabled: boolean; actor: string }
   | { type: "payoutRule"; amount: number; actor: string }
-  | { type: "settle"; entryId: string; field: "revenueReceived" | "payoutPaid"; actor: string };
+  | { type: "settle"; entryId: string; field: "revenueReceived" | "payoutPaid"; actor: string }
+  | { type: "reopenSettlement"; entryId: string; field: "revenueReceived" | "payoutPaid"; reason: string; actor: string };
 
 const DEMO_TIME = "2026-10-16T13:00:00.000Z";
 export const DEMO_DAY = "2026-10-16";
@@ -137,6 +148,16 @@ function audit(state: DemoState, actor: string, action: string, detail: string, 
   }];
 }
 
+function requireReason(reason: string): string {
+  const value = reason.trim();
+  if (value.length < 10) throw new Error("Informe um motivo com ao menos 10 caracteres.");
+  return value;
+}
+
+function conflict(state: DemoState, id: string, patientId: string, professionalId: string, day: string, time: string): boolean {
+  return state.appointments.some((item) => item.id !== id && item.day === day && item.time === time && item.status !== "absent" && item.status !== "cancelled" && (item.patientId === patientId || item.professionalId === professionalId));
+}
+
 export function applyCommand(state: DemoState, command: Command): DemoState {
   if (command.type === "registerPatient") {
     const name = command.name.trim();
@@ -155,8 +176,7 @@ export function applyCommand(state: DemoState, command: Command): DemoState {
     const professional = state.professionals.find((item) => item.id === command.professionalId);
     if (!professional?.units.includes(command.unitId)) throw new Error("Profissional indisponível nessa unidade.");
     if (!/^\d{4}-\d{2}-\d{2}$/.test(command.day) || !/^\d{2}:\d{2}$/.test(command.time)) throw new Error("Data ou horário inválido.");
-    if (state.appointments.some((item) => item.professionalId === command.professionalId && item.day === command.day && item.time === command.time && item.status !== "absent")) throw new Error("Profissional já possui atendimento nesse horário.");
-    if (state.appointments.some((item) => item.patientId === command.patientId && item.day === command.day && item.time === command.time && item.status !== "absent")) throw new Error("Paciente já possui atendimento nesse horário.");
+    if (conflict(state, "", command.patientId, command.professionalId, command.day, command.time)) throw new Error("Paciente ou profissional já possui atendimento nesse horário.");
     const id = `a${Math.max(0, ...state.appointments.map((item) => Number(item.id.slice(1)) || 0)) + 1}`;
     return {
       ...state,
@@ -191,10 +211,40 @@ export function applyCommand(state: DemoState, command: Command): DemoState {
       audit: audit(state, command.actor, "SETTLE", `${command.field} no lançamento ${entry.id}`, entry.appointmentId),
     };
   }
+  if (command.type === "reopenSettlement") {
+    const entry = state.financial.find((item) => item.id === command.entryId);
+    if (!entry || !entry[command.field]) throw new Error("Conciliação não encontrada.");
+    const reason = requireReason(command.reason);
+    return { ...state, financial: state.financial.map((item) => item.id === entry.id ? { ...item, [command.field]: false } : item), audit: audit(state, command.actor, "REOPEN_SETTLEMENT", `${command.field}: ${reason}`, entry.appointmentId) };
+  }
 
   const appointment = state.appointments.find((item) => item.id === command.appointmentId);
   if (!appointment) throw new Error("Atendimento não encontrado.");
   const replace = (updated: Appointment) => state.appointments.map((item) => item.id === updated.id ? updated : item);
+
+  if (command.type === "editAppointment") {
+    if (appointment.status !== "scheduled") throw new Error("Reverta a confirmação ou falta antes de editar.");
+    const reason = requireReason(command.reason);
+    const professional = state.professionals.find((item) => item.id === command.professionalId);
+    if (!professional?.units.includes(command.unitId)) throw new Error("Profissional indisponível nessa unidade.");
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(command.day) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(command.time)) throw new Error("Data ou horário inválido.");
+    if (conflict(state, appointment.id, appointment.patientId, command.professionalId, command.day, command.time)) throw new Error("Paciente ou profissional já possui atendimento nesse horário.");
+    const detail = `${appointment.day} ${appointment.time} ${UNIT_NAMES[appointment.unitId]} ${appointment.professionalId} → ${command.day} ${command.time} ${UNIT_NAMES[command.unitId]} ${command.professionalId}. Motivo: ${reason}`;
+    return { ...state, appointments: replace({ ...appointment, day: command.day, time: command.time, professionalId: command.professionalId, unitId: command.unitId, exceptionReason: undefined }), audit: audit(state, command.actor, "EDIT_APPOINTMENT", detail, appointment.id) };
+  }
+  if (command.type === "reverse" || command.type === "cancel") {
+    const reason = requireReason(command.reason);
+    if (appointment.status === "cancelled") throw new Error("Atendimento já cancelado.");
+    if (command.type === "reverse" && appointment.status === "scheduled") throw new Error("Atendimento já está agendado.");
+    if (appointment.evolution) throw new Error("Existe evolução clínica. O profissional deve tratar explicitamente o registro antes da reversão.");
+    const entry = state.financial.find((item) => item.appointmentId === appointment.id);
+    if (entry?.revenueReceived || entry?.payoutPaid) throw new Error("Lançamento já conciliado. A gestão precisa tratar o financeiro antes desta reversão.");
+    return { ...state,
+      appointments: replace({ ...appointment, status: command.type === "reverse" ? "scheduled" : "cancelled", exceptionReason: undefined }),
+      financial: state.financial.filter((item) => item.appointmentId !== appointment.id),
+      audit: audit(state, command.actor, command.type === "reverse" ? "REVERSE" : "CANCEL", `${appointment.status} → ${command.type === "reverse" ? "scheduled" : "cancelled"}; produção simulada revertida. Motivo: ${reason}`, appointment.id),
+    };
+  }
 
   if (command.type === "confirm") {
     if (appointment.status === "confirmed") return state; // Idempotência, inclusive da produção.
@@ -249,20 +299,49 @@ export function applyCommand(state: DemoState, command: Command): DemoState {
   if (command.type === "evolve") {
     if (appointment.status !== "confirmed") throw new Error("Prontuário ainda não liberado.");
     if (appointment.professionalId !== command.professionalId) throw new Error("Acesso não autorizado ao prontuário.");
-    if (appointment.evolution) throw new Error("Evolução já concluída. Adendos ainda não definidos no MVP.");
+    if (appointment.evolutionStatus === "final") throw new Error("Evolução finalizada. Registre um complemento.");
     const note = command.note.trim();
     if (note.length < 10) throw new Error("Registre ao menos 10 caracteres de evolução fictícia.");
-    return { ...state, appointments: replace({ ...appointment, evolution: note }), audit: audit(state, command.actor, "EVOLUTION", "Evolução demonstrativa registrada, conteúdo omitido da auditoria.", appointment.id) };
+    return { ...state, appointments: replace({ ...appointment, evolution: note, evolutionStatus: "final" }), audit: audit(state, command.actor, "EVOLUTION", "Evolução demonstrativa finalizada, conteúdo omitido da auditoria.", appointment.id) };
+  }
+  if (["saveDraft", "finalizeEvolution", "amendEvolution", "discardDraft", "voidEvolution"].includes(command.type)) {
+    if (appointment.status !== "confirmed") throw new Error("Prontuário ainda não liberado.");
+    if (appointment.professionalId !== command.professionalId) throw new Error("Acesso não autorizado ao prontuário.");
+    if (command.type === "saveDraft") {
+      if (appointment.evolutionStatus === "final") throw new Error("Evolução finalizada. Registre um complemento.");
+      const note = command.note.trim();
+      if (note.length < 10) throw new Error("Registre ao menos 10 caracteres fictícios.");
+      return { ...state, appointments: replace({ ...appointment, evolution: note, evolutionStatus: "draft" }), audit: audit(state, command.actor, "DRAFT", "Rascunho salvo; conteúdo omitido.", appointment.id) };
+    }
+    if (command.type === "finalizeEvolution") {
+      if (!appointment.evolution || appointment.evolutionStatus === "final") throw new Error("Salve um rascunho antes de finalizar.");
+      return { ...state, appointments: replace({ ...appointment, evolutionStatus: "final" }), audit: audit(state, command.actor, "FINALIZE", "Evolução finalizada; conteúdo omitido.", appointment.id) };
+    }
+    if (command.type === "discardDraft") {
+      if (appointment.evolutionStatus !== "draft") throw new Error("Apenas rascunho pode ser descartado.");
+      const reason = requireReason(command.reason);
+      return { ...state, appointments: replace({ ...appointment, evolution: undefined, evolutionStatus: undefined }), audit: audit(state, command.actor, "DISCARD_DRAFT", `Rascunho descartado. Motivo: ${reason}`, appointment.id) };
+    }
+    if (command.type === "voidEvolution") {
+      if (!appointment.evolution) throw new Error("Evolução não encontrada.");
+      const reason = requireReason(command.reason);
+      return { ...state, appointments: replace({ ...appointment, evolution: undefined, evolutionStatus: undefined, amendments: undefined }), audit: audit(state, command.actor, "VOID_EVOLUTION", `Registro fictício invalidado pelo profissional. Motivo: ${reason}`, appointment.id) };
+    }
+    if (appointment.evolutionStatus !== "final" && !appointment.evolution) throw new Error("Finalize a evolução antes de complementar.");
+    const note = command.note.trim();
+    if (note.length < 10) throw new Error("Registre ao menos 10 caracteres fictícios.");
+    return { ...state, appointments: replace({ ...appointment, amendments: [...(appointment.amendments ?? []), { at: new Date().toISOString(), note }] }), audit: audit(state, command.actor, "AMEND", "Complemento registrado; conteúdo omitido.", appointment.id) };
   }
   return state;
 }
 
 export function executeForRole(state: DemoState, role: Role, command: Command): DemoState {
-  const receptionActions: Command["type"][] = ["registerPatient", "schedule", "confirm", "absence", "transfer"];
-  const managementActions: Command["type"][] = ["exception", "policy", "payoutRule", "settle"];
+  const receptionActions: Command["type"][] = ["registerPatient", "schedule", "confirm", "absence", "transfer", "editAppointment", "reverse", "cancel"];
+  const managementActions: Command["type"][] = ["exception", "policy"];
+  if (role === "finance" && !["settle", "payoutRule", "reopenSettlement"].includes(command.type)) throw new Error("Ação indisponível para o financeiro.");
   if (role === "reception" && !receptionActions.includes(command.type)) throw new Error("Ação indisponível para a recepção.");
   if (role === "management" && !managementActions.includes(command.type)) throw new Error("Ação indisponível para a gestão.");
-  if (role === "professional" && command.type !== "evolve") throw new Error("Ação indisponível para o profissional.");
+  if (role === "professional" && !["evolve", "saveDraft", "finalizeEvolution", "amendEvolution", "discardDraft", "voidEvolution"].includes(command.type)) throw new Error("Ação indisponível para o profissional.");
   return applyCommand(state, command);
 }
 
@@ -273,7 +352,7 @@ export function totals(state: DemoState, unit: UnitId | "all") {
     scheduled: appointments.filter((item) => item.status === "scheduled").length,
     confirmed: appointments.filter((item) => item.status === "confirmed").length,
     absent: appointments.filter((item) => item.status === "absent").length,
-    clinicalPending: appointments.filter((item) => item.status === "confirmed" && !item.evolution).length,
+    clinicalPending: appointments.filter((item) => item.status === "confirmed" && item.evolutionStatus !== "final" && !(!item.evolutionStatus && item.evolution)).length,
     expectedRevenue: financial.reduce((sum, item) => sum + item.expectedRevenue, 0),
     receivedRevenue: financial.filter((item) => item.revenueReceived).reduce((sum, item) => sum + item.expectedRevenue, 0),
     payoutDue: financial.filter((item) => !item.payoutPaid).reduce((sum, item) => sum + item.payout, 0),

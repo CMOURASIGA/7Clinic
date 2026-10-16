@@ -53,3 +53,6 @@ body{font-family:Manrope,Inter,"Segoe UI",Arial,sans-serif;background:radial-gra
   .top-right{gap:9px}.demo-tag{font-size:8px;padding:6px}.notification{font-size:20px}
 }
 @media(max-height:650px){.clinic-lockup{min-height:73px}.brand{padding:10px 3px;margin-bottom:10px}.calendar-box{padding:8px}.calendar-days span{padding:2px 0}.side-bottom{padding-top:5px;padding-bottom:5px}.reset{margin-top:2px;padding:5px}}
+.sidebar-date{width:100%;padding:9px 8px;border:1px solid #5685af;border-radius:8px;background:#fff;color:#14395e;font:inherit;color-scheme:light}
+.status-cancelled{background:#f1f3f6;color:#667386}
+.appointment>.form-grid{grid-column:1/-1;width:100%;margin-top:12px}

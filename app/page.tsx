@@ -4,13 +4,14 @@ import { useEffect, useState } from "react";
 import { Management } from "../components/management";
 import { ProfessionalView } from "../components/professional";
 import { Reception } from "../components/reception";
-import { createSeed, executeForRole, type Command, type DemoState, type Role, type UnitId } from "../lib/domain";
+import { createSeed, DEMO_DAY, executeForRole, type Command, type DemoState, type Role, type UnitId } from "../lib/domain";
 import { localRepository } from "../lib/local-repository";
 
 const views: { id: Role; title: string }[] = [
   { id: "reception", title: "Recepção" },
   { id: "professional", title: "Profissionais" },
   { id: "management", title: "Gestão" },
+  { id: "finance", title: "Financeiro" },
 ];
 
 function NavIcon({ role }: { role: Role }) {
@@ -27,6 +28,7 @@ export default function Home() {
   const [ready, setReady] = useState(false);
   const [role, setRole] = useState<Role>("reception");
   const [unit, setUnit] = useState<UnitId | "all">("all");
+  const [selectedDay, setSelectedDay] = useState(DEMO_DAY);
   const [message, setMessage] = useState<{ text: string; error: boolean } | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -59,7 +61,7 @@ export default function Home() {
   }
 
   const notifications = state.appointments.filter((item) => item.status === "scheduled" && state.policies.notifyOnConfirmationPending).length
-    + state.appointments.filter((item) => item.status === "confirmed" && !item.evolution && state.policies.notifyOnClinicalPending).length;
+    + state.appointments.filter((item) => item.status === "confirmed" && item.evolutionStatus !== "final" && !(!item.evolutionStatus && item.evolution) && state.policies.notifyOnClinicalPending).length;
 
   if (!ready) return <div className="loading">Preparando a demonstração do 7Clinic...</div>;
 
@@ -70,13 +72,13 @@ export default function Home() {
       <div className="brand"><div><strong>7Clinic</strong><small>Gestão clínica · SPEC 00</small></div></div>
       <div className="side-section">PRINCIPAL</div>
       <nav aria-label="Ambientes" className="nav-links">{views.map((view) => <button key={view.id} className={role === view.id ? "active" : ""} aria-current={role === view.id ? "page" : undefined} onClick={() => { setRole(view.id); setMessage(null); setMenuOpen(false); }}><NavIcon role={view.id}/>{view.title}</button>)}</nav>
-      <div className="side-bottom"><div className="calendar-box"><div className="calendar-head"><strong>Outubro 2026</strong><span>Agenda demonstrativa</span></div><div className="calendar-days">{["D","S","T","Q","Q","S","S"].map((day, index) => <b key={index}>{day}</b>)}{Array.from({ length: 4 }, (_, index) => <i key={`empty-${index}`}/>)}{Array.from({ length: 31 }, (_, index) => <span key={index} className={index + 1 === 16 ? "today" : ""}>{index + 1}</span>)}</div></div><button className="reset" onClick={reset}>↺ &nbsp; Reiniciar demonstração</button></div>
+      <div className="side-bottom"><div className="calendar-box"><div className="calendar-head"><strong>Data da agenda</strong><span>Recepção e profissionais</span></div><input className="sidebar-date" aria-label="Data da agenda no menu" type="date" value={selectedDay} onChange={(event) => setSelectedDay(event.target.value)}/><button className="reset" onClick={() => setSelectedDay("")}>Mostrar todas as datas</button></div><button className="reset" onClick={reset}>↺ &nbsp; Reiniciar demonstração</button></div>
     </aside>
     <div className="workspace">
       <header className="topbar"><button className="mobile-nav-toggle" aria-label="Abrir menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(true)}>☰</button><div className="breadcrumb"><small>WORKSPACE ATIVO</small><strong>{views.find((view) => view.id === role)?.title}</strong></div><div className="top-right"><span className="demo-tag">● &nbsp; DEMONSTRAÇÃO</span><span className="notification" aria-label={`${notifications} notificações demonstrativas`}>♧<b>{notifications}</b></span><div className="identity"><span className="avatar">{role === "reception" ? "R" : role === "professional" ? "P" : "G"}</span><span><strong>{role === "reception" ? "Recepção" : role === "professional" ? "Profissional" : "Gestão"}</strong><small>Perfil simulado</small></span></div></div></header>
       <main className="page-content">
         {message ? <div className={`toast ${message.error ? "toast-error" : ""}`} role="status">{message.text}<button aria-label="Fechar aviso" onClick={() => setMessage(null)}>×</button></div> : null}
-        {role === "reception" ? <Reception state={state} unit={unit} onUnit={setUnit} run={run}/> : role === "professional" ? <ProfessionalView state={state} unit={unit} onUnit={setUnit} run={run}/> : <Management state={state} unit={unit} onUnit={setUnit} run={run}/>}
+        {role === "reception" ? <Reception state={state} unit={unit} onUnit={setUnit} selectedDay={selectedDay} onDay={setSelectedDay} run={run}/> : role === "professional" ? <ProfessionalView state={state} unit={unit} onUnit={setUnit} selectedDay={selectedDay} onDay={setSelectedDay} run={run}/> : <Management state={state} unit={unit} onUnit={setUnit} run={run} financeOnly={role === "finance"}/>}
         <footer className="footer">7Clinic · SPEC 00 · dados 100% fictícios · persistência somente neste navegador · não utilizar para atendimento real</footer>
       </main>
     </div>

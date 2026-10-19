@@ -69,3 +69,14 @@ body{font-family:Manrope,Inter,"Segoe UI",Arial,sans-serif;background:radial-gra
 .notice-wrap{position:relative}.notice-wrap .notification{border:0;background:none;color:var(--navy);cursor:pointer;position:relative}.notice-panel{position:absolute;right:0;top:calc(100% + 12px);width:min(330px,85vw);max-height:60vh;overflow:auto;background:#fff;border:1px solid var(--border);border-radius:14px;box-shadow:0 18px 40px #00295236;z-index:30;padding:14px}.notice-panel>strong{display:block;margin-bottom:8px;color:var(--navy)}.notice-panel>button{display:block;width:100%;border:0;border-bottom:1px solid var(--border);background:#fff;padding:10px;text-align:left;color:var(--ink);font-size:12px}.notice-panel>button:hover{background:#eaf5fc}.notice-panel small{display:block;color:#657d93;margin-top:4px}
 .sidebar-close{display:none}
 @media(max-width:730px){.sidebar-close{display:block;position:absolute;top:7px;right:7px;z-index:2;border:0;background:#fff;color:var(--navy);width:30px;height:30px;font-size:22px;line-height:1;border-radius:8px}}
+.shell .sidebar{color:var(--brand-on-primary)}
+.shell .nav-links button{color:var(--brand-on-primary)}
+.shell .nav-links button.active,.shell .calendar-days button.today{color:var(--brand-on-highlight)}
+.shell .button-primary{background:var(--blue);color:var(--brand-on-primary)}
+.shell .button-primary:hover:not(:disabled){filter:brightness(.88);background:var(--blue)}
+.shell .toggle input{accent-color:var(--blue)}
+.brand-preview{display:flex;align-items:center;gap:14px;margin:15px 0;padding:12px;border:1px solid var(--border);border-radius:12px;background:#fff;color:var(--ink)}
+.brand-preview img{width:100px;height:65px;object-fit:contain}
+.brand-preview span{font-weight:700}
+.shell .clinic-lockup{color:#17324d}
+.shell .brand strong{color:var(--brand-on-primary)}

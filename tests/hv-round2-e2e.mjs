@@ -50,9 +50,9 @@ try {
       assert.equal(await row.count(), 0);
       const blocked = page.locator(".appointment").filter({ hasText: "15:00" });
       await blocked.getByText("Confirmação bloqueada", { exact: false }).waitFor();
-      assert.match(await blocked.innerText(), /atendimento anterior deste paciente, agendado para 16\/10\/2026 às 8h/);
+      assert.match(await blocked.innerText(), /atendimento anterior deste paciente, agendado para 16\/10\/2026 às 08:00/);
       assert.doesNotMatch(await blocked.innerText(), /\ba\d+\b/);
-      await blocked.getByRole("button", { name: "Ver atendimento das 8h" }).click();
+      await blocked.getByRole("button", { name: "Ver atendimento das 08:00" }).click();
       await page.locator(".appointment-focused").filter({ hasText: "08:00" }).waitFor();
       await photo("recepcao-calendario-bloqueio");
       await go("Profissionais");

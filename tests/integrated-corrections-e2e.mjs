@@ -86,10 +86,10 @@ try {
   assert.doesNotMatch(await auditList.innerText(), /payoutPaid|revenueReceived|fin:[\w-]+|R\$\s*\d+\.\d{2}/);
   await page.getByRole("combobox", { name: "Auditoria usuário" }).selectOption("Financeiro demonstrativo");
   assert.ok(await auditList.locator(":scope > div").count() >= 2);
-  await page.getByRole("combobox", { name: "Auditoria operação" }).selectOption("PAYOUT_RULE");
   await page.getByRole("combobox", { name: "Auditoria usuário" }).selectOption("");
   await page.getByRole("spinbutton", { name: "Repasse por consulta (R$)" }).fill("20");
   await page.getByRole("button", { name: "Atualizar regra" }).click();
+  await page.getByRole("combobox", { name: "Auditoria operação" }).selectOption("PAYOUT_RULE");
   await auditList.getByText("R$ 20,00", { exact: false }).waitFor();
   await page.screenshot({ path: "artifacts/visual/integrated-history-desktop.png", fullPage: true });
 

@@ -19,6 +19,15 @@ try {
     try {
       await page.goto(base);
       await page.getByRole("heading", { name: "Agenda e atendimento" }).waitFor();
+      if (size.width > 730) {
+        const sidebar = await page.locator(".sidebar").evaluate((element) => ({ scroll: element.scrollHeight, height: element.clientHeight }));
+        const nav = await page.locator(".nav-links").evaluate((element) => ({ scroll: element.scrollHeight, height: element.clientHeight }));
+        assert.ok(sidebar.scroll <= sidebar.height + 2, `${size.name}: sidebar não deveria rolar`);
+        assert.ok(nav.scroll <= nav.height + 2, `${size.name}: menu não deveria ter rolagem interna`);
+        for (const label of ["Recepção", "Profissionais", "Gestão", "Financeiro"]) assert.equal(await page.getByRole("navigation", { name: "Ambientes" }).getByRole("button", { name: label, exact: true }).isVisible(), true);
+        assert.equal(await page.locator(".calendar-box").isVisible(), true);
+        await page.locator(".sidebar").screenshot({ path: `artifacts/visual/hv2-${size.name}-sidebar-depois.png` });
+      }
       await menu();
       assert.equal(await page.getByRole("img", { name: "Logo Consult Services" }).isVisible(), true);
       await page.getByRole("button", { name: "Selecionar 2026-10-17" }).click();
@@ -101,4 +110,15 @@ try {
       await context.close();
     }
   }
+  const short = await browser.newContext({ viewport: { width: 1280, height: 600 } });
+  try {
+    const page = await short.newPage();
+    await page.goto(base);
+    await page.getByRole("heading", { name: "Agenda e atendimento" }).waitFor();
+    assert.equal(await page.locator(".nav-links").evaluate((element) => element.scrollHeight <= element.clientHeight + 2), true);
+    await page.locator(".sidebar").evaluate((element) => { element.scrollTop = element.scrollHeight; });
+    assert.equal(await page.locator(".calendar-box").isVisible(), true);
+    assert.equal(await page.getByRole("navigation", { name: "Ambientes" }).getByRole("button", { name: "Financeiro" }).isVisible(), true);
+    await page.locator(".sidebar").screenshot({ path: "artifacts/visual/hv2-desktop-baixa-altura-sidebar-depois.png" });
+  } finally { await short.close(); }
 } finally { await browser.close(); }

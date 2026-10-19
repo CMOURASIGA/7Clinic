@@ -21,10 +21,18 @@ Status: **HUMAN VALIDATION ROUND 2 CORRECTIONS READY**, sujeito à revalidação
 | HV2-05 Maia simulada preservada; futura integração documentada | PASS nos testes existentes | `tests/hv-round2.test.ts`, `lib/maia.ts` | Aprovar desenho posterior |
 | HV2-06 Menu mobile completo | FAIL conhecido, reformulação adiada | Primeira navegação humana | Não homologar mobile |
 | HV2-06 Calendário mobile com filtragem equivalente ao desktop | FAIL conhecido, reformulação adiada | Primeira navegação humana | Não homologar mobile |
+| HV2-07 Sidebar desktop sem rolagem interna desnecessária | PASS após CI visual | Comparativo de capturas e verificação de `scrollHeight` no E2E | Revalidar na resolução utilizada pela clínica |
+| HV2-07 Baixa altura com acesso às quatro rotinas e calendário | PASS após CI visual | E2E 1280 x 600 e captura após rolar a sidebar | Conferir no equipamento da clínica |
 | Fluxos aprovados de repasse, clínica, exclusão e calendário desktop | PASS após regressão CI | Scripts smoke, E2E e validação | Revalidar desktop integrado |
 | Homologação funcional da rodada 2 | NOT TESTED | Depende da clínica | PR permanece Draft |
 
 As linhas marcadas como PASS após CI visual só devem ser consideradas comprovadas quando o run final estiver concluído com sucesso. Capturas em tablet e celular documentam a condição técnica, não homologam as pendências mobile.
+
+## Ajuste complementar do menu lateral
+
+O checkpoint anterior distribuía a altura restante para `.nav-links` com `flex: 1`, `min-height: 0` e `overflow-y: auto`, criando uma área de rolagem própria para apenas quatro opções. A sidebar ainda tinha `overflow-y: auto`, o que podia produzir duas rolagens. A navegação agora ocupa sua altura natural, o cabeçalho foi compactado sem remover a marca e somente a sidebar rola quando a janela não comporta todo o conjunto. O calendário permanece depois das rotinas, com seleção compartilhada pela Recepção e Profissionais.
+
+Comparação: captura anterior `hv2-desktop-recepcao-calendario-bloqueio.png` no [run de base](https://github.com/CMOURASIGA/7Clinic/actions/runs/39303891516/artifacts/12210734799); novas capturas `hv2-desktop-sidebar-depois.png`, `hv2-tablet-sidebar-depois.png` e `hv2-desktop-baixa-altura-sidebar-depois.png` no artefato do run final deste ajuste. A comparação é de estado do sistema antes e depois; a referência Gestão de Demandas da CNC orientou a distribuição, sem copiar seu visual.
 
 ## Roteiro desktop
 

@@ -27,7 +27,18 @@ export interface Appointment {
   evolution?: string;
   evolutionStatus?: "draft" | "final";
   amendments?: { at: string; note: string }[];
+  clinicalHistory?: ClinicalHistoryItem[];
   exceptionReason?: string;
+}
+
+export interface ClinicalHistoryItem {
+  id: string;
+  at: string;
+  actor: string;
+  action: "DRAFT" | "FINALIZE" | "AMEND" | "DISCARD_DRAFT" | "VOID_EVOLUTION";
+  content?: string;
+  amendments?: { at: string; note: string }[];
+  reason?: string;
 }
 
 export interface FinancialEntry {
@@ -75,6 +86,8 @@ export interface AuditEvent {
   action: string;
   appointmentId?: string;
   detail: string;
+  before?: string;
+  after?: string;
 }
 
 export interface DemoState {
@@ -98,6 +111,7 @@ export type Command =
   | { type: "reverse"; appointmentId: string; reason: string; actor: string }
   | { type: "cancel"; appointmentId: string; reason: string; actor: string }
   | { type: "transfer"; appointmentId: string; unitId: UnitId; actor: string }
+  | { type: "deleteAppointment"; appointmentId: string; actor: string }
   | { type: "evolve"; appointmentId: string; professionalId: string; note: string; actor: string }
   | { type: "saveDraft"; appointmentId: string; professionalId: string; note: string; actor: string }
   | { type: "finalizeEvolution"; appointmentId: string; professionalId: string; actor: string }
@@ -155,6 +169,7 @@ export function createScenario(): DemoState {
     { id: "a8", patientId: "p4", professionalId: "pr2", unitId: "u1", day: DEMO_DAY, time: "14:00", status: "confirmed", evolution: "Rascunho inteiramente fictício para teste de edição.", evolutionStatus: "draft" },
     { id: "a9", patientId: "p2", professionalId: "pr2", unitId: "u2", day: DEMO_DAY, time: "16:00", status: "confirmed", evolution: "Evolução fictícia finalizada para demonstração.", evolutionStatus: "final" },
     { id: "a10", patientId: "p1", professionalId: "pr2", unitId: "u2", day: DEMO_DAY, time: "17:00", status: "scheduled", exceptionReason: "Liberação fictícia previamente justificada pela gestão." },
+    { id: "a11", patientId: "p3", professionalId: "pr2", unitId: "u1", day: DEMO_DAY, time: "18:00", status: "confirmed", clinicalHistory: [{ id: "demo-invalidated", at: DEMO_TIME, actor: "Profissional Exemplo 2", action: "VOID_EVOLUTION", content: "Evolução fictícia invalidada para consulta histórica.", amendments: [{ at: DEMO_TIME, note: "Complemento fictício preservado." }], reason: "Registro de demonstração substituído." }] },
   ];
   return {
     ...base,
@@ -163,6 +178,7 @@ export function createScenario(): DemoState {
       ...base.financial,
       { id: "fin:a8", appointmentId: "a8", unitId: "u1", professionalId: "pr2", expectedRevenue: EXPECTED_REVENUE, payout: 18, revenueReceived: true, payoutPaid: false, createdAt: DEMO_TIME },
       { id: "fin:a9", appointmentId: "a9", unitId: "u2", professionalId: "pr2", expectedRevenue: EXPECTED_REVENUE, payout: 18, revenueReceived: true, payoutPaid: true, createdAt: DEMO_TIME },
+      { id: "fin:a11", appointmentId: "a11", unitId: "u1", professionalId: "pr2", expectedRevenue: EXPECTED_REVENUE, payout: 18, revenueReceived: false, payoutPaid: false, createdAt: DEMO_TIME },
     ],
     policies: { ...base.policies, blockOnPriorPending: true },
     audit: [
@@ -221,7 +237,8 @@ export function applyCommand(state: DemoState, command: Command): DemoState {
     if (!professional?.units.includes(command.unitId)) throw new Error("Profissional indisponível nessa unidade.");
     if (!/^\d{4}-\d{2}-\d{2}$/.test(command.day) || !/^\d{2}:\d{2}$/.test(command.time)) throw new Error("Data ou horário inválido.");
     if (conflict(state, "", command.patientId, command.professionalId, command.day, command.time)) throw new Error("Paciente ou profissional já possui atendimento nesse horário.");
-    const id = `a${Math.max(0, ...state.appointments.map((item) => Number(item.id.slice(1)) || 0)) + 1}`;
+    const usedIds = [...state.appointments.map((item) => item.id), ...state.audit.map((item) => item.appointmentId ?? "")];
+    const id = `a${Math.max(0, ...usedIds.map((value) => /^a\d+$/.test(value) ? Number(value.slice(1)) : 0)) + 1}`;
     return {
       ...state,
       appointments: [...state.appointments, { id, patientId: command.patientId, professionalId: command.professionalId, unitId: command.unitId, day: command.day, time: command.time, status: "scheduled" }],
@@ -265,6 +282,19 @@ export function applyCommand(state: DemoState, command: Command): DemoState {
   const appointment = state.appointments.find((item) => item.id === command.appointmentId);
   if (!appointment) throw new Error("Atendimento não encontrado.");
   const replace = (updated: Appointment) => state.appointments.map((item) => item.id === updated.id ? updated : item);
+  const clinicalEvent = (action: ClinicalHistoryItem["action"], actor: string, content?: string, reason?: string, amendments?: ClinicalHistoryItem["amendments"]): ClinicalHistoryItem => ({ id: `clinical-${state.audit.length + 1}`, at: new Date().toISOString(), actor, action, content, reason, amendments });
+
+  if (command.type === "deleteAppointment") {
+    const linked = state.financial.some((item) => item.appointmentId === appointment.id)
+      || state.financialReversals.some((item) => item.appointmentId === appointment.id)
+      || !!appointment.evolution || !!appointment.clinicalHistory?.length
+      || state.audit.some((item) => item.appointmentId === appointment.id && !["SCHEDULE", "SEED"].includes(item.action));
+    if (appointment.status !== "scheduled" || linked) throw new Error("Este atendimento possui confirmação ou vínculo posterior. Use cancelamento ou reversão com motivo.");
+    const events = audit(state, command.actor, "DELETE_APPOINTMENT", "Agendamento lançado indevidamente excluído após confirmação explícita.", appointment.id);
+    events[events.length - 1].before = `${appointment.day} ${appointment.time} ${UNIT_NAMES[appointment.unitId]} ${appointment.professionalId}`;
+    events[events.length - 1].after = "Excluído da agenda demonstrativa";
+    return { ...state, appointments: state.appointments.filter((item) => item.id !== appointment.id), audit: events };
+  }
 
   if (command.type === "editAppointment") {
     if (appointment.status !== "scheduled") throw new Error("Reverta a confirmação ou falta antes de editar.");
@@ -274,7 +304,10 @@ export function applyCommand(state: DemoState, command: Command): DemoState {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(command.day) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(command.time)) throw new Error("Data ou horário inválido.");
     if (conflict(state, appointment.id, appointment.patientId, command.professionalId, command.day, command.time)) throw new Error("Paciente ou profissional já possui atendimento nesse horário.");
     const detail = `${appointment.day} ${appointment.time} ${UNIT_NAMES[appointment.unitId]} ${appointment.professionalId} → ${command.day} ${command.time} ${UNIT_NAMES[command.unitId]} ${command.professionalId}. Motivo: ${reason}`;
-    return { ...state, appointments: replace({ ...appointment, day: command.day, time: command.time, professionalId: command.professionalId, unitId: command.unitId, exceptionReason: undefined }), audit: audit(state, command.actor, "EDIT_APPOINTMENT", detail, appointment.id) };
+    const events = audit(state, command.actor, "EDIT_APPOINTMENT", detail, appointment.id);
+    events[events.length - 1].before = `${appointment.day} ${appointment.time} ${UNIT_NAMES[appointment.unitId]} ${appointment.professionalId}`;
+    events[events.length - 1].after = `${command.day} ${command.time} ${UNIT_NAMES[command.unitId]} ${command.professionalId}`;
+    return { ...state, appointments: replace({ ...appointment, day: command.day, time: command.time, professionalId: command.professionalId, unitId: command.unitId, exceptionReason: undefined }), audit: events };
   }
   if (command.type === "reverse" || command.type === "cancel") {
     const reason = requireReason(command.reason);
@@ -349,7 +382,7 @@ export function applyCommand(state: DemoState, command: Command): DemoState {
     if (appointment.evolutionStatus === "final") throw new Error("Evolução finalizada. Registre um complemento.");
     const note = command.note.trim();
     if (note.length < 10) throw new Error("Registre ao menos 10 caracteres de evolução fictícia.");
-    return { ...state, appointments: replace({ ...appointment, evolution: note, evolutionStatus: "final" }), audit: audit(state, command.actor, "EVOLUTION", "Evolução demonstrativa finalizada, conteúdo omitido da auditoria.", appointment.id) };
+    return { ...state, appointments: replace({ ...appointment, evolution: note, evolutionStatus: "final", clinicalHistory: [...(appointment.clinicalHistory ?? []), clinicalEvent("FINALIZE", command.actor, note)] }), audit: audit(state, command.actor, "EVOLUTION", "Evolução demonstrativa finalizada, conteúdo omitido da auditoria.", appointment.id) };
   }
   if (["saveDraft", "finalizeEvolution", "amendEvolution", "discardDraft", "voidEvolution"].includes(command.type)) {
     if (appointment.status !== "confirmed") throw new Error("Prontuário ainda não liberado.");
@@ -358,34 +391,34 @@ export function applyCommand(state: DemoState, command: Command): DemoState {
       if (appointment.evolutionStatus === "final") throw new Error("Evolução finalizada. Registre um complemento.");
       const note = command.note.trim();
       if (note.length < 10) throw new Error("Registre ao menos 10 caracteres fictícios.");
-      return { ...state, appointments: replace({ ...appointment, evolution: note, evolutionStatus: "draft" }), audit: audit(state, command.actor, "DRAFT", "Rascunho salvo; conteúdo omitido.", appointment.id) };
+      return { ...state, appointments: replace({ ...appointment, evolution: note, evolutionStatus: "draft", clinicalHistory: [...(appointment.clinicalHistory ?? []), clinicalEvent("DRAFT", command.actor, note)] }), audit: audit(state, command.actor, "DRAFT", "Rascunho salvo; conteúdo omitido.", appointment.id) };
     }
     if (command.type === "finalizeEvolution") {
       if (!appointment.evolution || appointment.evolutionStatus === "final") throw new Error("Salve um rascunho antes de finalizar.");
-      return { ...state, appointments: replace({ ...appointment, evolutionStatus: "final" }), audit: audit(state, command.actor, "FINALIZE", "Evolução finalizada; conteúdo omitido.", appointment.id) };
+      return { ...state, appointments: replace({ ...appointment, evolutionStatus: "final", clinicalHistory: [...(appointment.clinicalHistory ?? []), clinicalEvent("FINALIZE", command.actor, appointment.evolution)] }), audit: audit(state, command.actor, "FINALIZE", "Evolução finalizada; conteúdo omitido.", appointment.id) };
     }
     if (command.type === "discardDraft") {
       if (appointment.evolutionStatus !== "draft") throw new Error("Apenas rascunho pode ser descartado.");
       const reason = requireReason(command.reason);
-      return { ...state, appointments: replace({ ...appointment, evolution: undefined, evolutionStatus: undefined }), audit: audit(state, command.actor, "DISCARD_DRAFT", `Rascunho descartado. Motivo: ${reason}`, appointment.id) };
+      return { ...state, appointments: replace({ ...appointment, evolution: undefined, evolutionStatus: undefined, clinicalHistory: [...(appointment.clinicalHistory ?? []), clinicalEvent("DISCARD_DRAFT", command.actor, appointment.evolution, reason)] }), audit: audit(state, command.actor, "DISCARD_DRAFT", `Rascunho descartado. Motivo: ${reason}`, appointment.id) };
     }
     if (command.type === "voidEvolution") {
       if (!appointment.evolution) throw new Error("Evolução não encontrada.");
       const reason = requireReason(command.reason);
-      return { ...state, appointments: replace({ ...appointment, evolution: undefined, evolutionStatus: undefined, amendments: undefined }), audit: audit(state, command.actor, "VOID_EVOLUTION", `Registro fictício invalidado pelo profissional. Motivo: ${reason}`, appointment.id) };
+      return { ...state, appointments: replace({ ...appointment, evolution: undefined, evolutionStatus: undefined, amendments: undefined, clinicalHistory: [...(appointment.clinicalHistory ?? []), clinicalEvent("VOID_EVOLUTION", command.actor, appointment.evolution, reason, appointment.amendments?.map((item) => ({ ...item })))] }), audit: audit(state, command.actor, "VOID_EVOLUTION", `Registro fictício invalidado pelo profissional. Motivo: ${reason}`, appointment.id) };
     }
-    if (appointment.evolutionStatus !== "final" && !appointment.evolution) throw new Error("Finalize a evolução antes de complementar.");
+    if (appointment.evolutionStatus !== "final" && !(appointment.evolution && !appointment.evolutionStatus)) throw new Error("Finalize a evolução antes de complementar.");
     const note = command.note.trim();
     if (note.length < 10) throw new Error("Registre ao menos 10 caracteres fictícios.");
-    return { ...state, appointments: replace({ ...appointment, amendments: [...(appointment.amendments ?? []), { at: new Date().toISOString(), note }] }), audit: audit(state, command.actor, "AMEND", "Complemento registrado; conteúdo omitido.", appointment.id) };
+    return { ...state, appointments: replace({ ...appointment, amendments: [...(appointment.amendments ?? []), { at: new Date().toISOString(), note }], clinicalHistory: [...(appointment.clinicalHistory ?? []), clinicalEvent("AMEND", command.actor, note)] }), audit: audit(state, command.actor, "AMEND", "Complemento registrado; conteúdo omitido.", appointment.id) };
   }
   return state;
 }
 
 export function executeForRole(state: DemoState, role: Role, command: Command): DemoState {
-  const receptionActions: Command["type"][] = ["registerPatient", "schedule", "confirm", "absence", "transfer", "editAppointment", "reverse", "cancel"];
-  const managementActions: Command["type"][] = ["exception", "policy"];
-  if (role === "finance" && !["settle", "payoutRule", "reopenSettlement"].includes(command.type)) throw new Error("Ação indisponível para o financeiro.");
+  const receptionActions: Command["type"][] = ["registerPatient", "schedule", "confirm", "absence", "transfer", "editAppointment", "reverse", "cancel", "deleteAppointment"];
+  const managementActions: Command["type"][] = ["exception", "policy", "payoutRule"];
+  if (role === "finance" && !["settle", "reopenSettlement"].includes(command.type)) throw new Error("Ação indisponível para o financeiro.");
   if (role === "reception" && !receptionActions.includes(command.type)) throw new Error("Ação indisponível para a recepção.");
   if (role === "management" && !managementActions.includes(command.type)) throw new Error("Ação indisponível para a gestão.");
   if (role === "professional" && !["evolve", "saveDraft", "finalizeEvolution", "amendEvolution", "discardDraft", "voidEvolution"].includes(command.type)) throw new Error("Ação indisponível para o profissional.");

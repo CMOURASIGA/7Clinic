@@ -29,24 +29,24 @@ try {
     await page.getByRole("heading", { name: "Agenda e atendimento" }).waitFor();
     if (viewport.name === "mobile") {
       await page.getByRole("button", { name: "Abrir menu" }).click();
-      assert.equal(await page.getByLabel("Data da agenda no menu").isVisible(), true);
+      assert.equal(await page.getByLabel("Mini calendário da agenda").isVisible(), true);
       await nav.getByRole("button", { name: "Recepção" }).click();
     }
     await page.getByRole("button", { name: "+ Agendar" }).click();
     const form = page.locator("form").filter({ has: page.getByRole("button", { name: "Criar agendamento" }) });
     await form.getByLabel("Paciente").selectOption("p3");
-    await form.getByLabel("Horário").fill("18:00");
+    await form.getByLabel("Horário").fill("18:30");
     await page.getByRole("button", { name: "Criar agendamento" }).click();
-    const row = page.locator(".appointment").filter({ hasText: "18:00" });
+    const row = page.locator(".appointment").filter({ hasText: "18:30" });
     await row.getByRole("button", { name: "Confirmar" }).click();
     await page.getByText("Ação registrada na demonstração.").waitFor();
     await go("Profissionais");
     await page.getByRole("heading", { name: "Minha agenda" }).waitFor();
-    await page.locator(".clinical-row").filter({ hasText: "18:00" }).click();
+    await page.locator(".clinical-row").filter({ hasText: "18:30" }).click();
     await page.getByRole("heading", { name: "Evolução pendente" }).waitFor();
     await go("Financeiro");
-    await page.getByText("Receita prevista filtrada").waitFor();
-    assert.ok((await page.getByText("Receita prevista filtrada").locator("..").innerText()).includes("480,00"));
+    await page.getByText("Produção gerada filtrada").waitFor();
+    assert.ok((await page.getByText("Produção gerada filtrada").locator("..").innerText()).includes("600,00"));
     await go("Gestão");
     await page.getByRole("heading", { name: "Painel de gestão" }).waitFor();
     await go("Recepção");
@@ -55,7 +55,7 @@ try {
     await page.getByLabel("Filtrar data").fill("2026-10-16");
     await page.reload();
     await page.getByRole("heading", { name: "Agenda e atendimento" }).waitFor();
-    assert.equal(await page.locator(".status-confirmed").count(), 4);
+    assert.equal(await page.locator(".status-confirmed").count(), 5);
     assert.deepEqual(errors, []);
     assert.ok((await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)) <= 2);
     console.log(`PASS smoke ${viewport.name}: quatro ambientes, agendamento, confirmação, calendário, financeiro, persistência e sem erro crítico`);

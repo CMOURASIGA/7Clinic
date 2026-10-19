@@ -1,0 +1,55 @@
+name: MVP mock visual gates
+on:
+  push:
+    branches: [feat/mvp-mockado-human-validation, feat/mvp-mockado-hv-round2]
+jobs:
+  visual:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm test
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run build
+      - run: git diff --check
+      - name: Start local build
+        run: |
+          npm run start > /tmp/7clinic-next.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -fsS http://localhost:3000/ > /dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/7clinic-next.log
+          exit 1
+      - id: smoke
+        run: node tests/smoke.mjs
+        continue-on-error: true
+      - id: e2e
+        run: node tests/e2e.mjs
+        continue-on-error: true
+      - id: validation
+        run: node tests/validation-e2e.mjs
+        continue-on-error: true
+      - id: hv2
+        run: node tests/hv-round2-e2e.mjs
+        continue-on-error: true
+      - name: Consolidate visual results
+        if: always()
+        run: |
+          test "${{ steps.smoke.outcome }}" = success
+          test "${{ steps.e2e.outcome }}" = success
+          test "${{ steps.validation.outcome }}" = success
+          test "${{ steps.hv2.outcome }}" = success
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mvp-mock-visual-${{ github.run_id }}
+          path: artifacts/visual/
+          if-no-files-found: ignore

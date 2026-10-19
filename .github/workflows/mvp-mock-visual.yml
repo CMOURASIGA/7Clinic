@@ -1,7 +1,7 @@
 name: MVP mock visual gates
 on:
   push:
-    branches: [feat/mvp-mockado-human-validation, feat/mvp-mockado-hv-round2, feat/spec-00-1-v3-central]
+    branches: [feat/mvp-mockado-human-validation, feat/mvp-mockado-hv-round2, feat/spec-00-1-v3-central, test/7clinic-hv-integrada]
 jobs:
   visual:
     runs-on: ubuntu-latest
@@ -43,6 +43,9 @@ jobs:
       - id: central
         run: node tests/central-e2e.mjs
         continue-on-error: true
+      - id: corrections
+        run: node tests/integrated-corrections-e2e.mjs
+        continue-on-error: true
       - name: Consolidate visual results
         if: always()
         run: |
@@ -51,6 +54,7 @@ jobs:
           test "${{ steps.validation.outcome }}" = success
           test "${{ steps.hv2.outcome }}" = success
           test "${{ steps.central.outcome }}" = success
+          test "${{ steps.corrections.outcome }}" = success
       - uses: actions/upload-artifact@v4
         if: always()
         with:

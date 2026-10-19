@@ -1,35 +1,61 @@
-# MVP mockado | Preparação da Human Validation integrada
+# MVP mockado | Fechamento dos gates visuais
 
-Base: `develop` em `e6410c2e29f48c9ab62ef9e4a0594db229e0a89c`. Branch: `feat/mvp-mockado-human-validation`. PR Draft separado do CP-02. Apenas dados sintéticos e `localStorage`.
+Status: **MVP MOCKADO - READY FOR INTEGRATED HUMAN VALIDATION**
 
-## Escopo e operação
+Base: `develop` em `e6410c2e29f48c9ab62ef9e4a0594db229e0a89c`. Branch: `feat/mvp-mockado-human-validation`. PR #4 permanece Draft. Dados exclusivamente sintéticos, persistidos em `localStorage`.
 
-A Recepção cadastra pacientes fictícios, agenda, confirma, edita, transfere, registra falta, cancela e reverte com justificativa. A confirmação cria imediatamente a produção e a pendência clínica. O Profissional edita rascunho, finaliza, complementa e invalida. A invalidação remove o registro da visão clínica ativa, mas preserva texto, versões de rascunho, complementos, data, autor e justificativa no histórico do atendimento. O Financeiro mantém recebimento e repasse independentes, subtotais por conta e situação, conciliação, reabertura e reversões. A Gestão filtra unidade, profissional e período, supervisiona valores e abre pendências contextualmente. Maia continua simulada.
+## Resultado consolidado
 
-Reversões bloqueadas por evolução ativa ou conciliação mostram o ambiente responsável e um atalho até o registro. Depois do tratamento, o usuário retorna ao atendimento e pode voltar à visão original. A operação mantém o ID e não duplica produção. A massa inicial contém duas unidades, quatro pacientes sintéticos, dois profissionais, todos os estados de atendimento, rascunho, evolução finalizada e invalidada com complemento histórico, conciliações, bloqueio e exceção. O reset exige confirmação e afeta apenas o navegador atual.
+O runner isolado do GitHub Actions instalou Chromium via Playwright, iniciou o build local e executou os três roteiros de navegador. A execução final no SHA funcional `239b4db26bc11704f38092055b8179520aa90aa6` foi concluída com sucesso:
 
-## Roteiro de validação por ambiente
+- `tests/smoke.mjs`: PASS em desktop e celular.
+- `tests/e2e.mjs`: PASS em desktop 1440 x 900, tablet 768 x 1024 e celular 390 x 844.
+- `tests/validation-e2e.mjs`: PASS nos três tamanhos, com screenshots e trace.
+- Regressão: 23 testes, 23 PASS, 0 FAIL.
+- Typecheck, lint, build e `git diff --check`: PASS.
+- GitHub Actions: https://github.com/CMOURASIGA/7Clinic/actions/runs/39259442829
+- Evidências: https://github.com/CMOURASIGA/7Clinic/actions/runs/39259442829/artifacts/12188313978
 
-1. Recepção: reiniciar cenário, cadastrar paciente fictício, agendar horário livre, confirmar e conferir pendência; testar falta e correção, edição, transferência, cancelamento com motivo. Abrir reversão bloqueada do atendimento `a8` e seguir ao Profissional.
-2. Profissionais: selecionar Profissional Exemplo 2, abrir `a8`, editar o rascunho, finalizar e complementar, invalidar com motivo. Conferir versões e complemento em histórico de leitura; `a11` já demonstra uma evolução invalidada. Retornar ao atendimento.
-3. Financeiro: conferir produção antes de qualquer evolução, filtrar por profissional, unidade, período, conta e situação. Receber e repassar de forma independente; reabrir o recebimento de `a8` com motivo; retornar à Recepção para a reversão.
-4. Gestão: filtrar unidade, profissional e período; comparar valores com Financeiro, seguir pendência à agenda correspondente, voltar ao contexto; testar regra de bloqueio, liberação excepcional e Maia simulada.
-5. Recarregar a página para validar persistência. Confirmar que a produção não duplicou e que o histórico da reversão e da evolução invalidada persistiu. Testar reset e cancelá-lo antes de confirmar.
+O artifact contém capturas dos fluxos de exceção e operação, além de traces Playwright de desktop, tablet e celular.
 
-## Matriz de evidências
+## Matriz consolidada
 
-| Cenário | Domínio automatizado | Interface desktop/tablet/mobile | Human Validation |
-| --- | --- | --- | --- |
-| Confirmação gera prontuário pendente e produção independente | PASS | NOT TESTED nesta branch | NOT TESTED |
-| Evolução: rascunho, versões, finalização, complemento, invalidação histórica | PASS | NOT TESTED | NOT TESTED |
-| Reversão e conciliação sem duplicidade, bloqueios justificados | PASS | NOT TESTED | NOT TESTED |
-| Filtros e subtotais financeiros por conta e situação | PASS | NOT TESTED | NOT TESTED |
-| Gestão por profissional/período e navegação contextual | Revisão de código; NOT TESTED em browser | NOT TESTED | NOT TESTED |
-| Reset protegido, persistência e massa fictícia | PASS parcial no domínio; confirmação visual NOT TESTED | NOT TESTED | NOT TESTED |
-| Responsividade e exceções visuais | NOT TESTED | NOT TESTED | NOT TESTED |
+| Ambiente e cenário | Resultado | Dispositivos | Esperado | Observado e evidência |
+| --- | --- | --- | --- | --- |
+| Recepção: agendar e confirmar | PASS | Desktop, tablet e celular | Criar atendimento e confirmar uma única vez | Atendimento confirmado; produção e pendência clínica geradas imediatamente; screenshot e trace |
+| Recepção: falta, correção, cancelamento e transferência | PASS | Desktop, tablet e celular | Alterar estado e unidade sem perder o identificador | Estados e unidade atualizados; motivos preservados; sem duplicidade; screenshot `recepcao-correcoes` e trace |
+| Recepção: reversões bloqueadas e retorno | PASS | Desktop, tablet e celular | Explicar bloqueio clínico ou financeiro, direcionar e retornar ao atendimento | Diálogos identificaram o ambiente responsável; retorno manteve o atendimento destacado; screenshots `reversao-bloqueada-clinica`, `reversao-bloqueada-financeiro` e `reversao-concluida` |
+| Profissionais: rascunho, edição, finalização e complemento | PASS | Desktop, tablet e celular | Manter versões e finalizar sem afetar produção | Rascunho editado, evolução finalizada e complemento preservado; screenshot `evolucao-finalizada` e trace |
+| Profissionais: invalidação e histórico | PASS | Desktop, tablet e celular | Exigir motivo, retirar evolução ativa e preservar conteúdo histórico | Motivo, responsável, data, conteúdo e complementos disponíveis em leitura; screenshot `historico-invalidado` e trace |
+| Financeiro: recebimento e repasse independentes | PASS | Desktop, tablet e celular | Conciliar cada lado separadamente | Estados independentes e saldos coerentes; screenshot `conciliacao-e-reabertura` e trace |
+| Financeiro: filtros e subtotais | PASS | Desktop, tablet e celular | Conta e situação alterarem dados e subtotais | Filtros exibiram somente lançamentos aplicáveis e recalcularam subtotais; screenshot `contas-filtradas` e trace |
+| Financeiro: reabertura e reversão | PASS | Desktop, tablet e celular | Exigir motivo e liberar reversão sem duplicar lançamento | Reabertura auditada e reversão concluída com lançamento único; trace |
+| Gestão: unidade, profissional e período | PASS | Desktop, tablet e celular | Calcular indicadores a partir dos registros filtrados | Indicadores e produção por profissional responderam aos filtros; screenshot `gestao-profissional` e trace |
+| Gestão: navegação contextual, bloqueio e exceção | PASS | Desktop, tablet e celular | Abrir registro relacionado e registrar liberação justificada | Navegação contextual e liberação concluídas; screenshot `gestao-excecao-maia` e trace |
+| Gestão: Maia simulada | PASS | Desktop, tablet e celular | Responder com indicadores locais e sem conteúdo clínico | Resposta financeira simulada coerente com a visão; screenshot e trace |
+| Integração: confirmação gera produção e pendência clínica | PASS | Desktop, tablet e celular | Efeitos imediatos e independentes da evolução | Profissionais exibiu a pendência e Financeiro o lançamento antes de evolução; smoke, E2E e trace |
+| Integração: persistência e ausência de duplicidades | PASS | Desktop, tablet e celular | Refresh preservar estado e IDs sem novos lançamentos | Estado persistiu após recarga, com uma ocorrência do atendimento criado; trace |
+| Reset demonstrativo protegido | PASS | Desktop, tablet e celular | Cancelamento manter dados e confirmação restaurar a massa | As duas opções foram verificadas e a massa inicial foi restaurada; trace |
+| Responsividade e erros críticos | PASS | 1440 x 900, 768 x 1024 e 390 x 844 | Sem overflow horizontal e sem exceções de página | Gate de largura e captura de `pageerror` passaram nos três tamanhos |
 
-`npm test`, typecheck, lint, build e `git diff --check` devem ser reexecutados no SHA final. Os scripts `tests/smoke.mjs`, `tests/e2e.mjs` e `tests/validation-e2e.mjs` cobrem respectivamente smoke, fluxo principal e exceções. Este runner não dispõe de Chromium; o download pelo Playwright falhou com arquivo truncado. Não declarar essas linhas como PASS antes da execução em runner com browser e no Preview.
+## Correções realizadas durante os gates
 
-## Limites
+1. O horário usado no smoke foi alterado de 18:00 para 18:30, pois 18:00 já pertence à massa fictícia e o sistema recusou corretamente a duplicidade.
+2. O seletor do subtotal financeiro foi tornado específico para evitar ambiguidade entre cards.
+3. Foi incluída a seção dinâmica de produção por profissional na Gestão, respeitando unidade, profissional e período.
+4. Ações e textos passaram a quebrar linha no tablet, eliminando o overflow horizontal detectado pelo gate de 768 px.
 
-Perfis são simulados, sem autenticação ou isolamento real. A trilha clínica e financeira é demonstrativa e local ao navegador. A massa e os valores são fictícios e não estabelecem regras contratuais da clínica. O PR #3 permanece aberto em Draft, isolado; nenhuma dependência, migração ou serviço Supabase é incluído neste MVP. SPEC 00 continua tecnicamente completa, com homologação humana integrada pendente.
+Após cada correção, a suíte completa foi reexecutada.
+
+## Preview protegido
+
+Preview final: https://7clinic-b6om2b94r-christians-projects-4954426e.vercel.app/
+
+- Deployment Vercel: READY no SHA `239b4db26bc11704f38092055b8179520aa90aa6`.
+- A proteção da Vercel permaneceu ativa.
+- Smoke essencial no Preview protegido: PASS por acesso temporário autorizado. A confirmação na Recepção apareceu como pendência no ambiente Profissionais e elevou a produção financeira de R$ 480,00 para R$ 600,00, sem evolução clínica. A massa desse navegador foi restaurada após a validação.
+- O ciclo visual completo foi executado contra o build local equivalente no runner isolado, conforme permitido para Preview protegido.
+
+## Limites preservados
+
+Perfis e Maia são simulados. Não há autenticação real, banco remoto, SQL, RLS ou integração financeira. Os dados e valores são fictícios e não definem políticas contratuais ou assistenciais. A Human Validation integrada permanece pendente. PR #3 continua isolado em Draft. Não houve merge em `develop` ou `main`.

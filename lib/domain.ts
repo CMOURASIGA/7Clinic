@@ -304,7 +304,10 @@ export function applyCommand(state: DemoState, command: Command): DemoState {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(command.day) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(command.time)) throw new Error("Data ou horário inválido.");
     if (conflict(state, appointment.id, appointment.patientId, command.professionalId, command.day, command.time)) throw new Error("Paciente ou profissional já possui atendimento nesse horário.");
     const detail = `${appointment.day} ${appointment.time} ${UNIT_NAMES[appointment.unitId]} ${appointment.professionalId} → ${command.day} ${command.time} ${UNIT_NAMES[command.unitId]} ${command.professionalId}. Motivo: ${reason}`;
-    return { ...state, appointments: replace({ ...appointment, day: command.day, time: command.time, professionalId: command.professionalId, unitId: command.unitId, exceptionReason: undefined }), audit: audit(state, command.actor, "EDIT_APPOINTMENT", detail, appointment.id) };
+    const events = audit(state, command.actor, "EDIT_APPOINTMENT", detail, appointment.id);
+    events[events.length - 1].before = `${appointment.day} ${appointment.time} ${UNIT_NAMES[appointment.unitId]} ${appointment.professionalId}`;
+    events[events.length - 1].after = `${command.day} ${command.time} ${UNIT_NAMES[command.unitId]} ${command.professionalId}`;
+    return { ...state, appointments: replace({ ...appointment, day: command.day, time: command.time, professionalId: command.professionalId, unitId: command.unitId, exceptionReason: undefined }), audit: events };
   }
   if (command.type === "reverse" || command.type === "cancel") {
     const reason = requireReason(command.reason);

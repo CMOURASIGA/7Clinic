@@ -110,7 +110,7 @@ try {
       await page.getByRole("combobox", { name: "Filtrar profissional gestão" }).selectOption("");
       await page.getByRole("textbox", { name: "Perguntar à Maia" }).fill("receita e repasse");
       await page.getByRole("button", { name: "Perguntar" }).click();
-      await page.getByText("Supervisão financeira demonstrativa", { exact: false }).waitFor();
+      await page.locator(".maia-answer").getByText("Produção demonstrativa", { exact: false }).waitFor();
       const exception = page.locator("form.exception").filter({ hasText: "Paciente Exemplo A" }).first();
       await exception.getByLabel("Justificativa").fill("Liberação excepcional fictícia da gestão");
       await exception.getByRole("button", { name: "Liberar" }).click();

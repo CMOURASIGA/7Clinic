@@ -25,7 +25,7 @@ try {
     }
     if (mobileMenu) {
       await page.getByRole("button", { name: "Abrir menu" }).click();
-      assert.equal(await page.getByLabel("Data da agenda no menu").isVisible(), true);
+      assert.equal(await page.getByLabel("Mini calendário da agenda").isVisible(), true);
       await nav.getByRole("button", { name: "Recepção" }).click();
     }
     const before = await page.locator(".appointment").count();

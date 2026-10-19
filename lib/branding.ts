@@ -7,7 +7,7 @@ export interface DemoBrand {
 
 export const DEFAULT_BRAND: DemoBrand = {
   name: "Consult Services",
-  logo: "https://i.imgur.com/gxXnYsA.png",
+  logo: "/consult-services.png",
   primary: "#003b73",
   highlight: "#00aeef",
 };

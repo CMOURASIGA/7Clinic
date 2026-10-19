@@ -86,7 +86,7 @@ test("apenas profissional vinculado registra evolução e gestão não vê conte
 });
 
 test("repasse parametrizado só afeta novas confirmações", () => {
-  let state = executeForRole(createSeed(), "finance", { type: "payoutRule", amount: 25, actor: "Gestão" });
+  let state = executeForRole(createSeed(), "management", { type: "payoutRule", amount: 25, actor: "Gestão" });
   state = executeForRole(state, "reception", { type: "confirm", appointmentId: "a1", actor: "Recepção" });
   assert.equal(state.financial.find((f) => f.appointmentId === "a3")?.payout, 18);
   assert.equal(state.financial.find((f) => f.appointmentId === "a1")?.payout, 25);

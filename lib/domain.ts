@@ -86,6 +86,8 @@ export interface AuditEvent {
   action: string;
   appointmentId?: string;
   detail: string;
+  before?: string;
+  after?: string;
 }
 
 export interface DemoState {
@@ -109,6 +111,7 @@ export type Command =
   | { type: "reverse"; appointmentId: string; reason: string; actor: string }
   | { type: "cancel"; appointmentId: string; reason: string; actor: string }
   | { type: "transfer"; appointmentId: string; unitId: UnitId; actor: string }
+  | { type: "deleteAppointment"; appointmentId: string; actor: string }
   | { type: "evolve"; appointmentId: string; professionalId: string; note: string; actor: string }
   | { type: "saveDraft"; appointmentId: string; professionalId: string; note: string; actor: string }
   | { type: "finalizeEvolution"; appointmentId: string; professionalId: string; actor: string }
@@ -234,7 +237,8 @@ export function applyCommand(state: DemoState, command: Command): DemoState {
     if (!professional?.units.includes(command.unitId)) throw new Error("Profissional indisponível nessa unidade.");
     if (!/^\d{4}-\d{2}-\d{2}$/.test(command.day) || !/^\d{2}:\d{2}$/.test(command.time)) throw new Error("Data ou horário inválido.");
     if (conflict(state, "", command.patientId, command.professionalId, command.day, command.time)) throw new Error("Paciente ou profissional já possui atendimento nesse horário.");
-    const id = `a${Math.max(0, ...state.appointments.map((item) => Number(item.id.slice(1)) || 0)) + 1}`;
+    const usedIds = [...state.appointments.map((item) => item.id), ...state.audit.map((item) => item.appointmentId ?? "")];
+    const id = `a${Math.max(0, ...usedIds.map((value) => /^a\d+$/.test(value) ? Number(value.slice(1)) : 0)) + 1}`;
     return {
       ...state,
       appointments: [...state.appointments, { id, patientId: command.patientId, professionalId: command.professionalId, unitId: command.unitId, day: command.day, time: command.time, status: "scheduled" }],
@@ -279,6 +283,18 @@ export function applyCommand(state: DemoState, command: Command): DemoState {
   if (!appointment) throw new Error("Atendimento não encontrado.");
   const replace = (updated: Appointment) => state.appointments.map((item) => item.id === updated.id ? updated : item);
   const clinicalEvent = (action: ClinicalHistoryItem["action"], actor: string, content?: string, reason?: string, amendments?: ClinicalHistoryItem["amendments"]): ClinicalHistoryItem => ({ id: `clinical-${state.audit.length + 1}`, at: new Date().toISOString(), actor, action, content, reason, amendments });
+
+  if (command.type === "deleteAppointment") {
+    const linked = state.financial.some((item) => item.appointmentId === appointment.id)
+      || state.financialReversals.some((item) => item.appointmentId === appointment.id)
+      || !!appointment.evolution || !!appointment.clinicalHistory?.length
+      || state.audit.some((item) => item.appointmentId === appointment.id && !["SCHEDULE", "SEED"].includes(item.action));
+    if (appointment.status !== "scheduled" || linked) throw new Error("Este atendimento possui confirmação ou vínculo posterior. Use cancelamento ou reversão com motivo.");
+    const events = audit(state, command.actor, "DELETE_APPOINTMENT", "Agendamento lançado indevidamente excluído após confirmação explícita.", appointment.id);
+    events[events.length - 1].before = `${appointment.day} ${appointment.time} ${UNIT_NAMES[appointment.unitId]} ${appointment.professionalId}`;
+    events[events.length - 1].after = "Excluído da agenda demonstrativa";
+    return { ...state, appointments: state.appointments.filter((item) => item.id !== appointment.id), audit: events };
+  }
 
   if (command.type === "editAppointment") {
     if (appointment.status !== "scheduled") throw new Error("Reverta a confirmação ou falta antes de editar.");
@@ -397,9 +413,9 @@ export function applyCommand(state: DemoState, command: Command): DemoState {
 }
 
 export function executeForRole(state: DemoState, role: Role, command: Command): DemoState {
-  const receptionActions: Command["type"][] = ["registerPatient", "schedule", "confirm", "absence", "transfer", "editAppointment", "reverse", "cancel"];
-  const managementActions: Command["type"][] = ["exception", "policy"];
-  if (role === "finance" && !["settle", "payoutRule", "reopenSettlement"].includes(command.type)) throw new Error("Ação indisponível para o financeiro.");
+  const receptionActions: Command["type"][] = ["registerPatient", "schedule", "confirm", "absence", "transfer", "editAppointment", "reverse", "cancel", "deleteAppointment"];
+  const managementActions: Command["type"][] = ["exception", "policy", "payoutRule"];
+  if (role === "finance" && !["settle", "reopenSettlement"].includes(command.type)) throw new Error("Ação indisponível para o financeiro.");
   if (role === "reception" && !receptionActions.includes(command.type)) throw new Error("Ação indisponível para a recepção.");
   if (role === "management" && !managementActions.includes(command.type)) throw new Error("Ação indisponível para a gestão.");
   if (role === "professional" && !["evolve", "saveDraft", "finalizeEvolution", "amendEvolution", "discardDraft", "voidEvolution"].includes(command.type)) throw new Error("Ação indisponível para o profissional.");

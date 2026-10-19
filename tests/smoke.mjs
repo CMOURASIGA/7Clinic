@@ -29,7 +29,7 @@ try {
     await page.getByRole("heading", { name: "Agenda e atendimento" }).waitFor();
     if (viewport.name === "mobile") {
       await page.getByRole("button", { name: "Abrir menu" }).click();
-      assert.equal(await page.getByLabel("Data da agenda no menu").isVisible(), true);
+      assert.equal(await page.getByLabel("Mini calendário da agenda").isVisible(), true);
       await nav.getByRole("button", { name: "Recepção" }).click();
     }
     await page.getByRole("button", { name: "+ Agendar" }).click();

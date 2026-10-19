@@ -1,16 +1,24 @@
 "use client";
 
 import { useState } from "react";
-import { hasPriorPending, pendingItems, totals, type Command, type DemoState, type UnitId, UNIT_NAMES } from "../lib/domain";
+import { hasPriorPending, pendingItems, type Command, type DemoState, type UnitId, UNIT_NAMES } from "../lib/domain";
 import { money, patientName, Stat, UnitPicker } from "./shared";
+import { answerMaia } from "../lib/maia";
+import { DEFAULT_BRAND, type DemoBrand } from "../lib/branding";
 
-export function Management({ state, unit, onUnit, run, onNavigate }: { state: DemoState; unit: UnitId | "all"; onUnit: (unit: UnitId | "all") => void; run: (command: Command) => boolean; onNavigate: (role: "reception" | "professional", day: string, appointmentId: string) => void }) {
+export function Management({ state, unit, onUnit, run, onNavigate, brand, onBrand }: { state: DemoState; unit: UnitId | "all"; onUnit: (unit: UnitId | "all") => void; run: (command: Command) => boolean; onNavigate: (role: "reception" | "professional", day: string, appointmentId: string) => void; brand: DemoBrand; onBrand: (brand: DemoBrand) => void }) {
   const [professionalFilter, setProfessionalFilter] = useState("");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [reason, setReason] = useState<Record<string, string>>({});
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState("");
+  const [amount, setAmount] = useState(String(state.payoutRules.at(-1)?.amount ?? 18));
+  const [auditFrom, setAuditFrom] = useState("");
+  const [auditTo, setAuditTo] = useState("");
+  const [auditActor, setAuditActor] = useState("");
+  const [auditAction, setAuditAction] = useState("");
+  const [auditAppointment, setAuditAppointment] = useState("");
   const visibleAppointments = state.appointments.filter((item) => (unit === "all" || item.unitId === unit) && (!professionalFilter || item.professionalId === professionalFilter) && (!from || item.day >= from) && (!to || item.day <= to));
   const visibleIds = new Set(visibleAppointments.map((item) => item.id));
   const financial = state.financial.filter((item) => visibleIds.has(item.appointmentId));
@@ -25,22 +33,22 @@ export function Management({ state, unit, onUnit, run, onNavigate }: { state: De
   };
   const pending = pendingItems(state, unit).filter((item) => visibleIds.has(item.appointment.id));
   const blocked = state.policies.blockOnPriorPending ? state.appointments.filter((item) => item.status === "scheduled" && !item.exceptionReason && hasPriorPending(state, item) && visibleIds.has(item.id)) : [];
+  const auditEvents = state.audit.filter((item) => (!auditFrom || item.at.slice(0, 10) >= auditFrom) && (!auditTo || item.at.slice(0, 10) <= auditTo) && (!auditActor || item.actor === auditActor) && (!auditAction || item.action === auditAction) && (!auditAppointment || item.appointmentId?.toLowerCase().includes(auditAppointment.toLowerCase())));
   function askMaia() {
-    const input = question.toLowerCase();
-    if (input.includes("bloque") || input.includes("exce")) {
-      setAnswer(`A regra de bloqueio está ${state.policies.blockOnPriorPending ? "ativa" : "inativa"} e há ${blocked.length} atendimentos bloqueados nesta visão. A gestão pode justificar uma liberação excepcional.`);
-    } else if (input.includes("finance") || input.includes("receita") || input.includes("repasse")) {
-      setAnswer(`Supervisão financeira demonstrativa: ${money(summary.expectedRevenue)} de produção prevista, ${money(summary.receivedRevenue)} recebidos e ${money(summary.payoutDue)} de repasses a pagar. A operação detalhada fica no ambiente Financeiro.`);
-    } else if (input.includes("unidade")) {
-      setAnswer(`Unidade I: ${totals(state, "u1").confirmed} confirmados e ${totals(state, "u1").clinicalPending} prontuários pendentes. Unidade II: ${totals(state, "u2").confirmed} confirmados e ${totals(state, "u2").clinicalPending} prontuários pendentes. Dados exclusivamente demonstrativos.`);
-    } else {
-      setAnswer(`Nesta visão, ${summary.scheduled} confirmações aguardam ação e ${summary.clinicalPending} prontuários estão pendentes. Trata-se somente de uma resposta simulada, sem avaliação clínica.`);
-    }
+    setAnswer(answerMaia(question, state, { unit, professionalId: professionalFilter, from, to }));
+  }
+  function uploadLogo(file?: File) {
+    if (!file) return;
+    if (!["image/png", "image/jpeg", "image/webp"].includes(file.type) || file.size > 1_000_000) { setAnswer("A marca local aceita PNG, JPEG ou WebP de até 1 MB."); return; }
+    const reader = new FileReader();
+    reader.onload = () => { if (typeof reader.result === "string") onBrand({ ...brand, logo: reader.result }); };
+    reader.readAsDataURL(file);
   }
 
   return <>
     <div className="view-header"><div><span className="kicker">GESTÃO · VISÃO DEMONSTRATIVA</span><h1>Painel de gestão</h1><p>Operação e pendências por unidade ou consolidado.</p></div><UnitPicker value={unit} onChange={onUnit}/></div>
     <div className="form-grid management-filters"><label>Profissional<select aria-label="Filtrar profissional gestão" value={professionalFilter} onChange={(event) => setProfessionalFilter(event.target.value)}><option value="">Todos</option>{state.professionals.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label>De<input aria-label="Período inicial gestão" type="date" value={from} onChange={(event) => setFrom(event.target.value)}/></label><label>Até<input aria-label="Período final gestão" type="date" value={to} onChange={(event) => setTo(event.target.value)}/></label></div>
+    <details className="surface guide"><summary>Como acompanhar a Gestão</summary><p>Use unidade, profissional e período para conferir indicadores. Abra pendências para corrigir atendimentos; libere exceções com justificativa. Auditoria e configurações ficam abaixo.</p></details>
     <div className="stats"><Stat label="Confirmados" value={summary.confirmed} note="Atendimentos únicos"/><Stat label="Agendados" value={summary.scheduled} note="Aguardando confirmação"/><Stat label="Faltas" value={summary.absent} note="Registradas na recepção"/><Stat label="Pendências clínicas" value={summary.clinicalPending} note="Sem bloquear o financeiro"/></div>
     <section className="surface"><div className="section-heading"><div><h2>Supervisão financeira</h2><p>Indicadores consolidados, com operação detalhada no ambiente Financeiro.</p></div></div><div className="stats"><Stat label="Produção prevista" value={money(summary.expectedRevenue)} note="Atendimentos confirmados"/><Stat label="Recebido" value={money(summary.receivedRevenue)} note="Conciliação simulada"/><Stat label="Repasses a pagar" value={money(summary.payoutDue)} note="Sem dependência do prontuário"/></div></section>
     <section className="surface"><h2>Unidades</h2>{(["u1", "u2"] as const).map((id) => { const item = { confirmed: visibleAppointments.filter((a) => a.unitId === id && a.status === "confirmed").length, absent: visibleAppointments.filter((a) => a.unitId === id && a.status === "absent").length, clinicalPending: visibleAppointments.filter((a) => a.unitId === id && a.status === "confirmed" && a.evolutionStatus !== "final").length }; return <div className="unit-summary" key={id}><strong>{UNIT_NAMES[id]}</strong><span>{item.confirmed} confirmados · {item.absent} faltas · {item.clinicalPending} evoluções pendentes</span></div>; })}</section>
@@ -53,8 +61,10 @@ export function Management({ state, unit, onUnit, run, onNavigate }: { state: De
     </div>
     <div className="split">
       <section className="surface"><div className="section-heading"><div><h2>Bloqueios e liberações excepcionais</h2><p>Justificativa obrigatória e ação auditada.</p></div></div>{blocked.length ? blocked.map((item) => <form className="exception" key={item.id} onSubmit={(event) => { event.preventDefault(); run({ type: "exception", appointmentId: item.id, reason: reason[item.id] ?? "", actor: "Gestão demonstrativa" }); setReason((current) => ({ ...current, [item.id]: "" })); }}><strong>{patientName(state, item)} · {UNIT_NAMES[item.unitId]}</strong><label>Justificativa<input required minLength={10} value={reason[item.id] ?? ""} onChange={(event) => setReason((current) => ({ ...current, [item.id]: event.target.value }))} placeholder="Motivo demonstrativo da liberação"/></label><button className="button button-primary">Liberar</button></form>) : <p className="empty">Nenhum bloqueio aplicável nesta visão. Ative a regra e tente confirmar o segundo agendamento do Paciente Exemplo A.</p>}</section>
-      <section className="surface maia-panel"><span className="kicker">MAIA · MODO DEMONSTRATIVO</span><h2>O que você quer acompanhar?</h2><p>Respostas simuladas com os indicadores locais. Sem IA externa e sem orientação clínica.</p><div className="suggestions">{["Pendências de hoje", "Atendimentos por unidade", "Bloqueios e exceções"].map((sample) => <button className="chip" key={sample} onClick={() => setQuestion(sample)}>{sample}</button>)}</div><form className="maia-form" onSubmit={(event) => { event.preventDefault(); askMaia(); }}><input aria-label="Perguntar à Maia" value={question} onChange={(event) => setQuestion(event.target.value)} placeholder="Pergunte sobre a demonstração"/><button className="button button-primary">Perguntar</button></form>{answer ? <div className="maia-answer">{answer}</div> : null}</section>
+      <section className="surface maia-panel"><span className="kicker">MAIA · MODO DEMONSTRATIVO</span><h2>O que você quer acompanhar?</h2><p>Respostas calculadas dos dados locais filtrados. Sem IA externa ou orientação clínica.</p><div className="suggestions">{["Qual profissional possui mais prontuários pendentes?", "Quantos atendimentos aguardam confirmação?", "Qual unidade possui mais pendências?", "Qual é a produção por profissional?", "Quais recebimentos estão pendentes?"].map((sample) => <button className="chip" key={sample} onClick={() => setQuestion(sample)}>{sample}</button>)}</div><form className="maia-form" onSubmit={(event) => { event.preventDefault(); askMaia(); }}><input aria-label="Perguntar à Maia" value={question} onChange={(event) => setQuestion(event.target.value)} placeholder="Pergunte sobre a demonstração"/><button className="button button-primary">Perguntar</button></form>{answer ? <div className="maia-answer">{answer}</div> : null}</section>
     </div>
-    <section className="surface"><div className="section-heading"><div><h2>Trilha de auditoria demonstrativa</h2><p>Sem texto clínico, com ator, ação e referência.</p></div></div><div className="audit-list">{state.audit.slice().reverse().slice(0, 12).map((item) => <div key={item.id}><strong>{item.action}</strong><span>{item.detail}</span><small>{item.actor} · {new Date(item.at).toLocaleString("pt-BR")} {item.appointmentId ? `· ${item.appointmentId}` : ""}</small></div>)}</div></section>
+    <section className="surface"><h2>Configuração demonstrativa de repasse</h2><p>Vigente: {money(state.payoutRules.at(-1)?.amount ?? 18)}. Novas confirmações usam a nova regra. Lançamentos existentes preservam o valor histórico e não são recalculados.</p><form className="inline-form" onSubmit={(event) => { event.preventDefault(); if (run({ type: "payoutRule", amount: Number(amount), actor: "Gestão demonstrativa" })) setAmount(String(Number(amount))); }}><label>Repasse por consulta (R$)<input type="number" min="0" step="0.01" value={amount} onChange={(event) => setAmount(event.target.value)}/></label><button className="button button-light">Atualizar regra</button></form></section>
+    <section className="surface"><h2>Identidade visual local</h2><p>Marca padrão Consult Services. Clínica Movimentar-se permanece como organização demonstrativa. A escolha vale apenas neste navegador.</p><div className="form-grid"><label>Nome da marca<input aria-label="Nome da marca" value={brand.name} maxLength={60} onChange={(event) => onBrand({ ...brand, name: event.target.value })}/></label><label>Logo local<input aria-label="Logo local" type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => uploadLogo(event.target.files?.[0])}/></label><label>Cor principal<input aria-label="Cor principal" type="color" value={brand.primary} onChange={(event) => onBrand({ ...brand, primary: event.target.value })}/></label><label>Cor de destaque<input aria-label="Cor de destaque" type="color" value={brand.highlight} onChange={(event) => onBrand({ ...brand, highlight: event.target.value })}/></label><button className="button button-light" onClick={() => onBrand(DEFAULT_BRAND)}>Restaurar Consult Services</button></div></section>
+    <section className="surface"><div className="section-heading"><div><h2>Trilha de auditoria demonstrativa</h2><p>Consulta por período, usuário simulado, operação e atendimento. Sem conteúdo clínico.</p></div></div><div className="form-grid"><label>De<input aria-label="Auditoria de" type="date" value={auditFrom} onChange={(event) => setAuditFrom(event.target.value)}/></label><label>Até<input aria-label="Auditoria até" type="date" value={auditTo} onChange={(event) => setAuditTo(event.target.value)}/></label><label>Usuário simulado<select aria-label="Auditoria usuário" value={auditActor} onChange={(event) => setAuditActor(event.target.value)}><option value="">Todos</option>{[...new Set(state.audit.map((item) => item.actor))].map((actor) => <option key={actor}>{actor}</option>)}</select></label><label>Operação<select aria-label="Auditoria operação" value={auditAction} onChange={(event) => setAuditAction(event.target.value)}><option value="">Todas</option>{[...new Set(state.audit.map((item) => item.action))].map((action) => <option key={action}>{action}</option>)}</select></label><label>Atendimento<input aria-label="Auditoria atendimento" value={auditAppointment} onChange={(event) => setAuditAppointment(event.target.value)} placeholder="a1"/></label></div><div className="audit-list">{auditEvents.slice().reverse().map((item) => <div key={item.id}><strong>{item.action}</strong><span>{item.detail}</span>{item.before ? <span>Antes: {item.before}</span> : null}{item.after ? <span>Depois: {item.after}</span> : null}<small>{item.actor} · {new Date(item.at).toLocaleString("pt-BR")} {item.appointmentId ? `· ${item.appointmentId}` : ""}</small></div>)}{!auditEvents.length ? <p className="muted">Nenhum evento nos filtros.</p> : null}</div></section>
   </>;
 }

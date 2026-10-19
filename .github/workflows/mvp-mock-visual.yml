@@ -1,7 +1,7 @@
 name: MVP mock visual gates
 on:
   push:
-    branches: [feat/mvp-mockado-human-validation]
+    branches: [feat/mvp-mockado-human-validation, feat/mvp-mockado-hv-round2]
 jobs:
   visual:
     runs-on: ubuntu-latest
@@ -37,12 +37,16 @@ jobs:
       - id: validation
         run: node tests/validation-e2e.mjs
         continue-on-error: true
+      - id: hv2
+        run: node tests/hv-round2-e2e.mjs
+        continue-on-error: true
       - name: Consolidate visual results
         if: always()
         run: |
           test "${{ steps.smoke.outcome }}" = success
           test "${{ steps.e2e.outcome }}" = success
           test "${{ steps.validation.outcome }}" = success
+          test "${{ steps.hv2.outcome }}" = success
       - uses: actions/upload-artifact@v4
         if: always()
         with:

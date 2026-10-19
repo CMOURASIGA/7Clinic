@@ -2,6 +2,8 @@ name: MVP mock visual gates
 on:
   push:
     branches: [feat/mvp-mockado-human-validation, feat/mvp-mockado-hv-round2, feat/spec-00-1-v3-central, test/7clinic-hv-integrada]
+  pull_request:
+    branches: [develop]
 jobs:
   visual:
     runs-on: ubuntu-latest

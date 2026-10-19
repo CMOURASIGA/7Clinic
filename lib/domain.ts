@@ -1,6 +1,7 @@
 export type UnitId = "u1" | "u2";
 export type Role = "reception" | "professional" | "management" | "finance";
-export type AppointmentStatus = "scheduled" | "confirmed" | "absent" | "cancelled";
+export type AppointmentStatus = "scheduled" | "prebooked" | "confirmed" | "absent" | "cancelled";
+export const awaitingConfirmation = (status: AppointmentStatus) => status === "scheduled" || status === "prebooked";
 
 export interface Patient {
   id: string;
@@ -100,6 +101,7 @@ export interface DemoState {
   payoutRules: PayoutRule[];
   policies: Policies;
   audit: AuditEvent[];
+  central?: import("./central.ts").CentralState;
 }
 
 export type Command =
@@ -192,7 +194,7 @@ export function hasPriorPending(state: DemoState, appointment: Appointment): boo
   return state.appointments.some((other) =>
     other.id !== appointment.id &&
     other.patientId === appointment.patientId &&
-    other.status === "scheduled" &&
+    awaitingConfirmation(other.status) &&
     (other.day < appointment.day || (other.day === appointment.day && other.time < appointment.time))
   );
 }
@@ -214,7 +216,7 @@ function requireReason(reason: string): string {
   return value;
 }
 
-function conflict(state: DemoState, id: string, patientId: string, professionalId: string, day: string, time: string): boolean {
+export function conflict(state: DemoState, id: string, patientId: string, professionalId: string, day: string, time: string): boolean {
   return state.appointments.some((item) => item.id !== id && item.day === day && item.time === time && item.status !== "absent" && item.status !== "cancelled" && (item.patientId === patientId || item.professionalId === professionalId));
 }
 
@@ -289,7 +291,7 @@ export function applyCommand(state: DemoState, command: Command): DemoState {
       || state.financialReversals.some((item) => item.appointmentId === appointment.id)
       || !!appointment.evolution || !!appointment.clinicalHistory?.length
       || state.audit.some((item) => item.appointmentId === appointment.id && !["SCHEDULE", "SEED"].includes(item.action));
-    if (appointment.status !== "scheduled" || linked) throw new Error("Este atendimento possui confirmação ou vínculo posterior. Use cancelamento ou reversão com motivo.");
+    if (appointment.status !== "scheduled" || linked) throw new Error("Este atendimento possui pré-agendamento, confirmação ou vínculo posterior. Use cancelamento ou reversão com motivo.");
     const events = audit(state, command.actor, "DELETE_APPOINTMENT", "Agendamento lançado indevidamente excluído após confirmação explícita.", appointment.id);
     events[events.length - 1].before = `${appointment.day} ${appointment.time} ${UNIT_NAMES[appointment.unitId]} ${appointment.professionalId}`;
     events[events.length - 1].after = "Excluído da agenda demonstrativa";
@@ -297,7 +299,7 @@ export function applyCommand(state: DemoState, command: Command): DemoState {
   }
 
   if (command.type === "editAppointment") {
-    if (appointment.status !== "scheduled") throw new Error("Reverta a confirmação ou falta antes de editar.");
+    if (!awaitingConfirmation(appointment.status)) throw new Error("Reverta a confirmação ou falta antes de editar.");
     const reason = requireReason(command.reason);
     const professional = state.professionals.find((item) => item.id === command.professionalId);
     if (!professional?.units.includes(command.unitId)) throw new Error("Profissional indisponível nessa unidade.");
@@ -312,7 +314,7 @@ export function applyCommand(state: DemoState, command: Command): DemoState {
   if (command.type === "reverse" || command.type === "cancel") {
     const reason = requireReason(command.reason);
     if (appointment.status === "cancelled") throw new Error("Atendimento já cancelado.");
-    if (command.type === "reverse" && appointment.status === "scheduled") throw new Error("Atendimento já está agendado.");
+    if (command.type === "reverse" && awaitingConfirmation(appointment.status)) throw new Error("Atendimento já está agendado.");
     if (appointment.evolution) throw new Error("Existe evolução clínica. O profissional deve tratar explicitamente o registro antes da reversão.");
     if (command.type === "reverse" && conflict(state, appointment.id, appointment.patientId, appointment.professionalId, appointment.day, appointment.time)) throw new Error("Horário ocupado. Reagende o atendimento conflitante antes de desfazer a falta.");
     const entry = state.financial.find((item) => item.appointmentId === appointment.id);
@@ -328,7 +330,7 @@ export function applyCommand(state: DemoState, command: Command): DemoState {
 
   if (command.type === "confirm") {
     if (appointment.status === "confirmed") return state; // Idempotência, inclusive da produção.
-    if (appointment.status !== "scheduled") throw new Error("Somente atendimento agendado pode ser confirmado.");
+    if (!awaitingConfirmation(appointment.status)) throw new Error("Somente atendimento agendado pode ser confirmado.");
     if (state.policies.blockOnPriorPending && hasPriorPending(state, appointment) && !appointment.exceptionReason) {
       throw new Error("Bloqueio configurado: há confirmação anterior pendente. Solicite liberação à gestão.");
     }
@@ -352,11 +354,11 @@ export function applyCommand(state: DemoState, command: Command): DemoState {
     };
   }
   if (command.type === "absence") {
-    if (appointment.status !== "scheduled") throw new Error("Somente atendimento agendado pode receber falta.");
+    if (!awaitingConfirmation(appointment.status)) throw new Error("Somente atendimento agendado pode receber falta.");
     return { ...state, appointments: replace({ ...appointment, status: "absent" }), audit: audit(state, command.actor, "ABSENCE", "Falta registrada.", appointment.id) };
   }
   if (command.type === "transfer") {
-    if (appointment.status !== "scheduled") throw new Error("Transferência demonstrativa permitida apenas antes da confirmação.");
+    if (!awaitingConfirmation(appointment.status)) throw new Error("Transferência demonstrativa permitida apenas antes da confirmação.");
     if (appointment.unitId === command.unitId) return state;
     const professional = state.professionals.find((item) => item.id === appointment.professionalId);
     if (!professional?.units.includes(command.unitId)) throw new Error("Profissional não atende na unidade de destino.");
@@ -370,7 +372,7 @@ export function applyCommand(state: DemoState, command: Command): DemoState {
     };
   }
   if (command.type === "exception") {
-    if (appointment.status !== "scheduled") throw new Error("Somente atendimento agendado pode ser liberado.");
+    if (!awaitingConfirmation(appointment.status)) throw new Error("Somente atendimento agendado pode ser liberado.");
     if (!state.policies.blockOnPriorPending || !hasPriorPending(state, appointment)) throw new Error("Não há bloqueio aplicável.");
     const reason = command.reason.trim();
     if (reason.length < 10) throw new Error("Informe justificativa com ao menos 10 caracteres.");
@@ -429,7 +431,7 @@ export function totals(state: DemoState, unit: UnitId | "all") {
   const appointments = state.appointments.filter((item) => unit === "all" || item.unitId === unit);
   const financial = state.financial.filter((item) => unit === "all" || item.unitId === unit);
   return {
-    scheduled: appointments.filter((item) => item.status === "scheduled").length,
+    scheduled: appointments.filter((item) => awaitingConfirmation(item.status)).length,
     confirmed: appointments.filter((item) => item.status === "confirmed").length,
     absent: appointments.filter((item) => item.status === "absent").length,
     clinicalPending: appointments.filter((item) => item.status === "confirmed" && item.evolutionStatus !== "final" && !(!item.evolutionStatus && item.evolution)).length,
@@ -446,7 +448,7 @@ export interface PendingItem {
 
 export function pendingItems(state: DemoState, unit: UnitId | "all" = "all"): PendingItem[] {
   return state.appointments.filter((item) => unit === "all" || item.unitId === unit).flatMap((appointment): PendingItem[] => {
-    if (appointment.status === "scheduled") return [{ appointment, kind: state.policies.blockOnPriorPending && hasPriorPending(state, appointment) && !appointment.exceptionReason ? "blocked" as const : "confirmation" as const }];
+    if (awaitingConfirmation(appointment.status)) return [{ appointment, kind: state.policies.blockOnPriorPending && hasPriorPending(state, appointment) && !appointment.exceptionReason ? "blocked" as const : "confirmation" as const }];
     if (appointment.status === "confirmed" && appointment.evolutionStatus !== "final" && !(appointment.evolution && !appointment.evolutionStatus)) return [{ appointment, kind: "clinical" as const }];
     return [];
   });

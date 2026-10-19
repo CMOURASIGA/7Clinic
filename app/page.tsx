@@ -10,6 +10,8 @@ import { createScenario, DEMO_DAY, executeForRole, notificationItems, type Comma
 import { localRepository } from "../lib/local-repository";
 import { DEFAULT_BRAND, loadBrand, resetBrand, saveBrand, type DemoBrand } from "../lib/branding";
 import { MiniCalendar } from "../components/mini-calendar";
+import { Central } from "../components/central";
+import { applyCentralCommand, type CentralCommand } from "../lib/central";
 
 const views: { id: Role; title: string }[] = [
   { id: "reception", title: "Recepção" },
@@ -41,6 +43,7 @@ export default function Home() {
   const [priorContext, setPriorContext] = useState<typeof returnContext>(null);
   const [resetOpen, setResetOpen] = useState(false);
   const [brand, setBrand] = useState<DemoBrand>(DEFAULT_BRAND);
+  const [centralOpen, setCentralOpen] = useState(false);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -65,6 +68,19 @@ export default function Home() {
     }
   }
 
+  function runCentral(command: CentralCommand) {
+    try {
+      if (role !== "reception") throw new Error("Central disponível somente na Recepção demonstrativa.");
+      const next = applyCentralCommand(state, command);
+      setState(next);
+      if (!["update", "select", "search", "filter"].includes(command.type)) setMessage({ text: "Operação demonstrativa registrada.", error: false });
+      return true;
+    } catch (error) {
+      setMessage({ text: error instanceof Error ? error.message : "Não foi possível concluir a ação.", error: true });
+      return false;
+    }
+  }
+
   function reset() {
     localRepository.clear();
     resetBrand();
@@ -77,11 +93,13 @@ export default function Home() {
     setFocusAppointmentId(null);
     setReturnContext(null);
     setPriorContext(null);
+    setCentralOpen(false);
   }
 
   const notices = notificationItems(state);
   const notifications = notices.length;
   function navigate(nextRole: Role, day?: string, appointmentId?: string, preserveReturn = false) {
+    setCentralOpen(false);
     if (appointmentId && !preserveReturn) setReturnContext({ role, day: selectedDay, unit, appointmentId: focusAppointmentId });
     if (!appointmentId && !preserveReturn) { setReturnContext(null); setPriorContext(null); }
     setRole(nextRole);
@@ -121,10 +139,10 @@ export default function Home() {
     </aside>
     <div className="workspace">
       {resetOpen ? <div className="dialog-backdrop"><div className="reason-dialog" role="dialog" aria-modal="true" aria-label="Reiniciar cenário fictício"><h2>Reiniciar cenário fictício?</h2><p>As alterações desta demonstração serão substituídas pela massa inicial neste navegador. Esta ação não pode ser desfeita.</p><div className="button-line"><button className="button button-light" onClick={() => setResetOpen(false)}>Manter dados</button><button className="button button-primary" onClick={reset}>Sim, reiniciar cenário</button></div></div></div> : null}
-      <header className="topbar"><button className="mobile-nav-toggle" aria-label="Abrir menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(true)}>☰</button><div className="breadcrumb"><small>WORKSPACE ATIVO</small><strong>{views.find((view) => view.id === role)?.title}</strong></div><div className="top-right"><span className="demo-tag">● &nbsp; DEMONSTRAÇÃO</span><div className="notice-wrap"><button className="notification" aria-label={`${notifications} notificações demonstrativas`} aria-expanded={noticesOpen} onClick={() => setNoticesOpen(!noticesOpen)}>♧<b>{notifications}</b></button>{noticesOpen ? <div className="notice-panel"><strong>Pendências demonstrativas</strong>{notices.slice(0, 12).map(({ appointment, kind }) => <button key={appointment.id} onClick={() => navigate(kind === "clinical" ? "professional" : kind === "blocked" ? "management" : "reception", appointment.day, appointment.id)}>{kind === "clinical" ? "Prontuário pendente" : kind === "blocked" ? "Confirmação bloqueada" : "Confirmar atendimento"}<small>{appointment.id} · {appointment.day} · {appointment.time}</small></button>)}{!notices.length ? <p>Nenhuma pendência notificada.</p> : null}</div> : null}</div><div className="identity"><span className="avatar">{role === "reception" ? "R" : role === "professional" ? "P" : role === "finance" ? "F" : "G"}</span><span><strong>{views.find((view) => view.id === role)?.title}</strong><small>Perfil simulado</small></span></div></div></header>
+      <header className="topbar"><button className="mobile-nav-toggle" aria-label="Abrir menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(true)}>☰</button><div className="breadcrumb"><small>WORKSPACE ATIVO</small><strong>{centralOpen ? "Recepção · Central" : views.find((view) => view.id === role)?.title}</strong></div><div className="top-right"><span className="demo-tag">● &nbsp; DEMONSTRAÇÃO</span><div className="notice-wrap"><button className="notification" aria-label={`${notifications} notificações demonstrativas`} aria-expanded={noticesOpen} onClick={() => setNoticesOpen(!noticesOpen)}>♧<b>{notifications}</b></button>{noticesOpen ? <div className="notice-panel"><strong>Pendências demonstrativas</strong>{notices.slice(0, 12).map(({ appointment, kind }) => <button key={appointment.id} onClick={() => navigate(kind === "clinical" ? "professional" : kind === "blocked" ? "management" : "reception", appointment.day, appointment.id)}>{kind === "clinical" ? "Prontuário pendente" : kind === "blocked" ? "Confirmação bloqueada" : "Confirmar atendimento"}<small>{appointment.id} · {appointment.day} · {appointment.time}</small></button>)}{!notices.length ? <p>Nenhuma pendência notificada.</p> : null}</div> : null}</div><div className="identity"><span className="avatar">{role === "reception" ? "R" : role === "professional" ? "P" : role === "finance" ? "F" : "G"}</span><span><strong>{views.find((view) => view.id === role)?.title}</strong><small>Perfil simulado</small></span></div></div></header>
       <main className="page-content">
         {message ? <div className={`toast ${message.error ? "toast-error" : ""}`} role="status">{message.text}<button aria-label="Fechar aviso" onClick={() => setMessage(null)}>×</button></div> : null}
-        {role === "reception" ? <Reception state={state} unit={unit} onUnit={setUnit} selectedDay={selectedDay} onDay={setSelectedDay} run={run} onManagement={() => navigate("management")} onFocus={(day, id) => navigate("reception", day, id)} focusAppointmentId={focusAppointmentId} onResolveBlock={resolveBlock} onReturn={returnContext ? returnToContext : undefined}/> : role === "professional" ? <ProfessionalView state={state} unit={unit} onUnit={setUnit} selectedDay={selectedDay} onDay={setSelectedDay} focusAppointmentId={focusAppointmentId} run={run} onReturn={returnContext ? returnToContext : undefined}/> : role === "finance" ? <Finance state={state} unit={unit} onUnit={setUnit} run={run} focusAppointmentId={focusAppointmentId} onReturn={returnContext ? returnToContext : undefined}/> : <Management state={state} unit={unit} onUnit={setUnit} run={run} onNavigate={(nextRole, day, id) => navigate(nextRole, day, id)} brand={brand} onBrand={setBrand}/>}
+        {role === "reception" && centralOpen ? <><button className="button button-light central-back" onClick={() => setCentralOpen(false)}>← Voltar à agenda da Recepção</button><Central state={state} run={runCentral} onAgenda={(day, id) => navigate("reception", day, id)}/></> : role === "reception" ? <Reception state={state} unit={unit} onUnit={setUnit} selectedDay={selectedDay} onDay={setSelectedDay} run={run} onCentral={() => setCentralOpen(true)} onManagement={() => navigate("management")} onFocus={(day, id) => navigate("reception", day, id)} focusAppointmentId={focusAppointmentId} onResolveBlock={resolveBlock} onReturn={returnContext ? returnToContext : undefined}/> : role === "professional" ? <ProfessionalView state={state} unit={unit} onUnit={setUnit} selectedDay={selectedDay} onDay={setSelectedDay} focusAppointmentId={focusAppointmentId} run={run} onReturn={returnContext ? returnToContext : undefined}/> : role === "finance" ? <Finance state={state} unit={unit} onUnit={setUnit} run={run} focusAppointmentId={focusAppointmentId} onReturn={returnContext ? returnToContext : undefined}/> : <Management state={state} unit={unit} onUnit={setUnit} run={run} onNavigate={(nextRole, day, id) => navigate(nextRole, day, id)} brand={brand} onBrand={setBrand}/>}
         <footer className="footer">7Clinic · SPEC 00 · dados 100% fictícios · persistência somente neste navegador · não utilizar para atendimento real</footer>
       </main>
     </div>

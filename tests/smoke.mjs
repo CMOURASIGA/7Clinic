@@ -45,8 +45,8 @@ try {
     await page.locator(".clinical-row").filter({ hasText: "18:00" }).click();
     await page.getByRole("heading", { name: "Evolução pendente" }).waitFor();
     await go("Financeiro");
-    await page.getByText("Receita prevista filtrada").waitFor();
-    assert.ok((await page.getByText("Receita prevista filtrada").locator("..").innerText()).includes("480,00"));
+    await page.getByText("Produção gerada filtrada").waitFor();
+    assert.ok((await page.getByText("Produção gerada filtrada").locator("..").innerText()).includes("600,00"));
     await go("Gestão");
     await page.getByRole("heading", { name: "Painel de gestão" }).waitFor();
     await go("Recepção");
@@ -55,7 +55,7 @@ try {
     await page.getByLabel("Filtrar data").fill("2026-10-16");
     await page.reload();
     await page.getByRole("heading", { name: "Agenda e atendimento" }).waitFor();
-    assert.equal(await page.locator(".status-confirmed").count(), 4);
+    assert.equal(await page.locator(".status-confirmed").count(), 5);
     assert.deepEqual(errors, []);
     assert.ok((await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)) <= 2);
     console.log(`PASS smoke ${viewport.name}: quatro ambientes, agendamento, confirmação, calendário, financeiro, persistência e sem erro crítico`);

@@ -39,9 +39,9 @@ try {
     await a1.getByRole("button", { name: "Confirmar" }).click();
     await page.getByText("Ação registrada na demonstração.").waitFor();
     await go("Financeiro");
-    assert.ok((await page.getByText("Receita prevista filtrada").locator("..").innerText()).includes("480,00"));
+    assert.ok((await page.getByText("Produção gerada filtrada").locator("..").innerText()).includes("600,00"));
     await page.getByRole("combobox", { name: "Convênio" }).selectOption({ label: "Convênio Fictício Azul" });
-    assert.ok((await page.getByText("Receita prevista filtrada").locator("..").innerText()).includes("240,00"));
+    assert.ok((await page.getByText("Produção gerada filtrada").locator("..").innerText()).includes("240,00"));
     await go("Profissionais");
     const clinical = page.locator(".clinical-row").filter({ hasText: "08:00" });
     await clinical.click();
@@ -52,7 +52,7 @@ try {
     await page.reload();
     await page.getByRole("heading", { name: "Agenda e atendimento" }).waitFor();
     await go("Financeiro");
-    assert.ok((await page.getByText("Receita prevista filtrada").locator("..").innerText()).includes("480,00"));
+    assert.ok((await page.getByText("Produção gerada filtrada").locator("..").innerText()).includes("600,00"));
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     assert.ok(overflow <= 2, `${viewport.name}: overflow horizontal ${overflow}px`);
     assert.deepEqual(errors, [], `${viewport.name}: erro no browser`);

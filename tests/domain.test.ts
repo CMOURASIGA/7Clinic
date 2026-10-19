@@ -1,7 +1,46 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { applyCommand, createScenario, createSeed, executeForRole, notificationItems, pendingItems, totals } from "../lib/domain.ts";
-import { filterFinance, type FinanceFilters } from "../lib/finance-selectors.ts";
+import { filterFinance, financeSummary, type FinanceFilters } from "../lib/finance-selectors.ts";
+
+test("histórico clínico preserva versões e complementos após invalidação, sem alterar financeiro", () => {
+  let state = createSeed();
+  const run = (command: Parameters<typeof applyCommand>[1]) => { state = executeForRole(state, "professional", command); };
+  run({ type: "saveDraft", appointmentId: "a3", professionalId: "pr1", note: "Rascunho clínico fictício inicial", actor: "Profissional" });
+  run({ type: "saveDraft", appointmentId: "a3", professionalId: "pr1", note: "Rascunho clínico fictício revisado", actor: "Profissional" });
+  run({ type: "finalizeEvolution", appointmentId: "a3", professionalId: "pr1", actor: "Profissional" });
+  run({ type: "amendEvolution", appointmentId: "a3", professionalId: "pr1", note: "Complemento clínico fictício", actor: "Profissional" });
+  assert.throws(() => run({ type: "voidEvolution", appointmentId: "a3", professionalId: "pr1", reason: "curto", actor: "Profissional" }), /motivo/);
+  const before = structuredClone(state.financial);
+  run({ type: "voidEvolution", appointmentId: "a3", professionalId: "pr1", reason: "Registro fictício incorreto", actor: "Profissional" });
+  const appointment = state.appointments.find((item) => item.id === "a3")!;
+  assert.equal(appointment.evolution, undefined);
+  assert.equal(appointment.evolutionStatus, undefined);
+  assert.deepEqual(state.financial, before);
+  assert.deepEqual(appointment.clinicalHistory?.map((event) => event.action), ["DRAFT", "DRAFT", "FINALIZE", "AMEND", "VOID_EVOLUTION"]);
+  assert.equal(appointment.clinicalHistory?.[0].content, "Rascunho clínico fictício inicial");
+  const invalidated = appointment.clinicalHistory?.at(-1);
+  assert.equal(invalidated?.content, "Rascunho clínico fictício revisado");
+  assert.equal(invalidated?.amendments?.[0].note, "Complemento clínico fictício");
+  assert.equal(invalidated?.reason, "Registro fictício incorreto");
+  assert.equal(invalidated?.actor, "Profissional");
+  assert.ok(invalidated?.at);
+  assert.equal(state.audit.at(-1)?.detail.includes("Rascunho clínico"), false);
+});
+
+test("subtotais financeiros respeitam lado da conta e situação", () => {
+  const state = createScenario();
+  const filters: FinanceFilters = { professionalId: "", insurance: "", from: "", to: "", account: "payable", situation: "open" };
+  const open = financeSummary(state, "all", filters);
+  assert.equal(open.received, 0);
+  assert.equal(open.toReceive, 0);
+  assert.equal(open.toPay, 54);
+  assert.equal(open.paid, 0);
+  const settled = financeSummary(state, "all", { ...filters, account: "receivable", situation: "settled" });
+  assert.equal(settled.received, 240);
+  assert.equal(settled.toPay, 0);
+  assert.equal(settled.toReceive, 0);
+});
 import { localRepository } from "../lib/local-repository.ts";
 
 test("confirmação libera prontuário e gera produção financeira antes da evolução", () => {

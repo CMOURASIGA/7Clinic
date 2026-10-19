@@ -27,7 +27,18 @@ export interface Appointment {
   evolution?: string;
   evolutionStatus?: "draft" | "final";
   amendments?: { at: string; note: string }[];
+  clinicalHistory?: ClinicalHistoryItem[];
   exceptionReason?: string;
+}
+
+export interface ClinicalHistoryItem {
+  id: string;
+  at: string;
+  actor: string;
+  action: "DRAFT" | "FINALIZE" | "AMEND" | "DISCARD_DRAFT" | "VOID_EVOLUTION";
+  content?: string;
+  amendments?: { at: string; note: string }[];
+  reason?: string;
 }
 
 export interface FinancialEntry {
@@ -155,6 +166,7 @@ export function createScenario(): DemoState {
     { id: "a8", patientId: "p4", professionalId: "pr2", unitId: "u1", day: DEMO_DAY, time: "14:00", status: "confirmed", evolution: "Rascunho inteiramente fictício para teste de edição.", evolutionStatus: "draft" },
     { id: "a9", patientId: "p2", professionalId: "pr2", unitId: "u2", day: DEMO_DAY, time: "16:00", status: "confirmed", evolution: "Evolução fictícia finalizada para demonstração.", evolutionStatus: "final" },
     { id: "a10", patientId: "p1", professionalId: "pr2", unitId: "u2", day: DEMO_DAY, time: "17:00", status: "scheduled", exceptionReason: "Liberação fictícia previamente justificada pela gestão." },
+    { id: "a11", patientId: "p3", professionalId: "pr2", unitId: "u1", day: DEMO_DAY, time: "18:00", status: "confirmed", clinicalHistory: [{ id: "demo-invalidated", at: DEMO_TIME, actor: "Profissional Exemplo 2", action: "VOID_EVOLUTION", content: "Evolução fictícia invalidada para consulta histórica.", amendments: [{ at: DEMO_TIME, note: "Complemento fictício preservado." }], reason: "Registro de demonstração substituído." }] },
   ];
   return {
     ...base,
@@ -163,6 +175,7 @@ export function createScenario(): DemoState {
       ...base.financial,
       { id: "fin:a8", appointmentId: "a8", unitId: "u1", professionalId: "pr2", expectedRevenue: EXPECTED_REVENUE, payout: 18, revenueReceived: true, payoutPaid: false, createdAt: DEMO_TIME },
       { id: "fin:a9", appointmentId: "a9", unitId: "u2", professionalId: "pr2", expectedRevenue: EXPECTED_REVENUE, payout: 18, revenueReceived: true, payoutPaid: true, createdAt: DEMO_TIME },
+      { id: "fin:a11", appointmentId: "a11", unitId: "u1", professionalId: "pr2", expectedRevenue: EXPECTED_REVENUE, payout: 18, revenueReceived: false, payoutPaid: false, createdAt: DEMO_TIME },
     ],
     policies: { ...base.policies, blockOnPriorPending: true },
     audit: [
@@ -265,6 +278,7 @@ export function applyCommand(state: DemoState, command: Command): DemoState {
   const appointment = state.appointments.find((item) => item.id === command.appointmentId);
   if (!appointment) throw new Error("Atendimento não encontrado.");
   const replace = (updated: Appointment) => state.appointments.map((item) => item.id === updated.id ? updated : item);
+  const clinicalEvent = (action: ClinicalHistoryItem["action"], actor: string, content?: string, reason?: string, amendments?: ClinicalHistoryItem["amendments"]): ClinicalHistoryItem => ({ id: `clinical-${state.audit.length + 1}`, at: new Date().toISOString(), actor, action, content, reason, amendments });
 
   if (command.type === "editAppointment") {
     if (appointment.status !== "scheduled") throw new Error("Reverta a confirmação ou falta antes de editar.");
@@ -349,7 +363,7 @@ export function applyCommand(state: DemoState, command: Command): DemoState {
     if (appointment.evolutionStatus === "final") throw new Error("Evolução finalizada. Registre um complemento.");
     const note = command.note.trim();
     if (note.length < 10) throw new Error("Registre ao menos 10 caracteres de evolução fictícia.");
-    return { ...state, appointments: replace({ ...appointment, evolution: note, evolutionStatus: "final" }), audit: audit(state, command.actor, "EVOLUTION", "Evolução demonstrativa finalizada, conteúdo omitido da auditoria.", appointment.id) };
+    return { ...state, appointments: replace({ ...appointment, evolution: note, evolutionStatus: "final", clinicalHistory: [...(appointment.clinicalHistory ?? []), clinicalEvent("FINALIZE", command.actor, note)] }), audit: audit(state, command.actor, "EVOLUTION", "Evolução demonstrativa finalizada, conteúdo omitido da auditoria.", appointment.id) };
   }
   if (["saveDraft", "finalizeEvolution", "amendEvolution", "discardDraft", "voidEvolution"].includes(command.type)) {
     if (appointment.status !== "confirmed") throw new Error("Prontuário ainda não liberado.");
@@ -358,26 +372,26 @@ export function applyCommand(state: DemoState, command: Command): DemoState {
       if (appointment.evolutionStatus === "final") throw new Error("Evolução finalizada. Registre um complemento.");
       const note = command.note.trim();
       if (note.length < 10) throw new Error("Registre ao menos 10 caracteres fictícios.");
-      return { ...state, appointments: replace({ ...appointment, evolution: note, evolutionStatus: "draft" }), audit: audit(state, command.actor, "DRAFT", "Rascunho salvo; conteúdo omitido.", appointment.id) };
+      return { ...state, appointments: replace({ ...appointment, evolution: note, evolutionStatus: "draft", clinicalHistory: [...(appointment.clinicalHistory ?? []), clinicalEvent("DRAFT", command.actor, note)] }), audit: audit(state, command.actor, "DRAFT", "Rascunho salvo; conteúdo omitido.", appointment.id) };
     }
     if (command.type === "finalizeEvolution") {
       if (!appointment.evolution || appointment.evolutionStatus === "final") throw new Error("Salve um rascunho antes de finalizar.");
-      return { ...state, appointments: replace({ ...appointment, evolutionStatus: "final" }), audit: audit(state, command.actor, "FINALIZE", "Evolução finalizada; conteúdo omitido.", appointment.id) };
+      return { ...state, appointments: replace({ ...appointment, evolutionStatus: "final", clinicalHistory: [...(appointment.clinicalHistory ?? []), clinicalEvent("FINALIZE", command.actor, appointment.evolution)] }), audit: audit(state, command.actor, "FINALIZE", "Evolução finalizada; conteúdo omitido.", appointment.id) };
     }
     if (command.type === "discardDraft") {
       if (appointment.evolutionStatus !== "draft") throw new Error("Apenas rascunho pode ser descartado.");
       const reason = requireReason(command.reason);
-      return { ...state, appointments: replace({ ...appointment, evolution: undefined, evolutionStatus: undefined }), audit: audit(state, command.actor, "DISCARD_DRAFT", `Rascunho descartado. Motivo: ${reason}`, appointment.id) };
+      return { ...state, appointments: replace({ ...appointment, evolution: undefined, evolutionStatus: undefined, clinicalHistory: [...(appointment.clinicalHistory ?? []), clinicalEvent("DISCARD_DRAFT", command.actor, appointment.evolution, reason)] }), audit: audit(state, command.actor, "DISCARD_DRAFT", `Rascunho descartado. Motivo: ${reason}`, appointment.id) };
     }
     if (command.type === "voidEvolution") {
       if (!appointment.evolution) throw new Error("Evolução não encontrada.");
       const reason = requireReason(command.reason);
-      return { ...state, appointments: replace({ ...appointment, evolution: undefined, evolutionStatus: undefined, amendments: undefined }), audit: audit(state, command.actor, "VOID_EVOLUTION", `Registro fictício invalidado pelo profissional. Motivo: ${reason}`, appointment.id) };
+      return { ...state, appointments: replace({ ...appointment, evolution: undefined, evolutionStatus: undefined, amendments: undefined, clinicalHistory: [...(appointment.clinicalHistory ?? []), clinicalEvent("VOID_EVOLUTION", command.actor, appointment.evolution, reason, appointment.amendments?.map((item) => ({ ...item })))] }), audit: audit(state, command.actor, "VOID_EVOLUTION", `Registro fictício invalidado pelo profissional. Motivo: ${reason}`, appointment.id) };
     }
-    if (appointment.evolutionStatus !== "final" && !appointment.evolution) throw new Error("Finalize a evolução antes de complementar.");
+    if (appointment.evolutionStatus !== "final" && !(appointment.evolution && !appointment.evolutionStatus)) throw new Error("Finalize a evolução antes de complementar.");
     const note = command.note.trim();
     if (note.length < 10) throw new Error("Registre ao menos 10 caracteres fictícios.");
-    return { ...state, appointments: replace({ ...appointment, amendments: [...(appointment.amendments ?? []), { at: new Date().toISOString(), note }] }), audit: audit(state, command.actor, "AMEND", "Complemento registrado; conteúdo omitido.", appointment.id) };
+    return { ...state, appointments: replace({ ...appointment, amendments: [...(appointment.amendments ?? []), { at: new Date().toISOString(), note }], clinicalHistory: [...(appointment.clinicalHistory ?? []), clinicalEvent("AMEND", command.actor, note)] }), audit: audit(state, command.actor, "AMEND", "Complemento registrado; conteúdo omitido.", appointment.id) };
   }
   return state;
 }

@@ -34,6 +34,9 @@ export default function Home() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [noticesOpen, setNoticesOpen] = useState(false);
   const [focusAppointmentId, setFocusAppointmentId] = useState<string | null>(null);
+  const [returnContext, setReturnContext] = useState<{ role: Role; day: string; unit: UnitId | "all"; appointmentId: string | null } | null>(null);
+  const [priorContext, setPriorContext] = useState<typeof returnContext>(null);
+  const [resetOpen, setResetOpen] = useState(false);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -57,23 +60,42 @@ export default function Home() {
   }
 
   function reset() {
-    if (!window.confirm("Reiniciar todos os dados fictícios desta demonstração neste navegador?")) return;
     localRepository.clear();
     setState(createScenario());
     setSelectedDay(DEMO_DAY);
     setUnit("all");
     setMessage({ text: "Demonstração reiniciada.", error: false });
+    setResetOpen(false);
+    setFocusAppointmentId(null);
+    setReturnContext(null);
+    setPriorContext(null);
   }
 
   const notices = notificationItems(state);
   const notifications = notices.length;
-  function navigate(nextRole: Role, day?: string, appointmentId?: string) {
+  function navigate(nextRole: Role, day?: string, appointmentId?: string, preserveReturn = false) {
+    if (appointmentId && !preserveReturn) setReturnContext({ role, day: selectedDay, unit, appointmentId: focusAppointmentId });
+    if (!appointmentId && !preserveReturn) { setReturnContext(null); setPriorContext(null); }
     setRole(nextRole);
     if (appointmentId) setUnit("all");
     if (day) setSelectedDay(day);
     setFocusAppointmentId(appointmentId ?? null);
     setMenuOpen(false);
     setNoticesOpen(false);
+  }
+  function returnToContext() {
+    if (!returnContext) return;
+    setRole(returnContext.role);
+    setSelectedDay(returnContext.day);
+    setUnit(returnContext.unit);
+    setFocusAppointmentId(returnContext.appointmentId);
+    setReturnContext(priorContext);
+    setPriorContext(null);
+  }
+  function resolveBlock(id: string, target: "professional" | "finance") {
+    setPriorContext(returnContext);
+    setReturnContext({ role: "reception", day: selectedDay, unit, appointmentId: id });
+    navigate(target, state.appointments.find((item) => item.id === id)?.day, id, true);
   }
 
   if (!ready) return <div className="loading">Preparando a demonstração do 7Clinic...</div>;
@@ -85,13 +107,14 @@ export default function Home() {
       <div className="brand"><div><strong>7Clinic</strong><small>Gestão clínica · SPEC 00</small></div></div>
       <div className="side-section">PRINCIPAL</div>
       <nav aria-label="Ambientes" className="nav-links">{views.map((view) => <button key={view.id} className={role === view.id ? "active" : ""} aria-current={role === view.id ? "page" : undefined} onClick={() => { navigate(view.id); setMessage(null); }}><NavIcon role={view.id}/>{view.title}</button>)}</nav>
-      <div className="side-bottom"><div className="calendar-box"><div className="calendar-head"><strong>Data da agenda</strong><span>Recepção e profissionais</span></div><input className="sidebar-date" aria-label="Data da agenda no menu" type="date" value={selectedDay} onChange={(event) => setSelectedDay(event.target.value)}/><button className="reset" onClick={() => setSelectedDay("")}>Mostrar todas as datas</button></div><button className="reset" onClick={reset}>↺ &nbsp; Reiniciar cenário fictício</button></div>
+      <div className="side-bottom"><div className="calendar-box"><div className="calendar-head"><strong>Data da agenda</strong><span>Recepção e profissionais</span></div><input className="sidebar-date" aria-label="Data da agenda no menu" type="date" value={selectedDay} onChange={(event) => setSelectedDay(event.target.value)}/><button className="reset" onClick={() => setSelectedDay("")}>Mostrar todas as datas</button></div><button className="reset" onClick={() => setResetOpen(true)}>↺ &nbsp; Reiniciar cenário fictício</button></div>
     </aside>
     <div className="workspace">
+      {resetOpen ? <div className="dialog-backdrop"><div className="reason-dialog" role="dialog" aria-modal="true" aria-label="Reiniciar cenário fictício"><h2>Reiniciar cenário fictício?</h2><p>As alterações desta demonstração serão substituídas pela massa inicial neste navegador. Esta ação não pode ser desfeita.</p><div className="button-line"><button className="button button-light" onClick={() => setResetOpen(false)}>Manter dados</button><button className="button button-primary" onClick={reset}>Sim, reiniciar cenário</button></div></div></div> : null}
       <header className="topbar"><button className="mobile-nav-toggle" aria-label="Abrir menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(true)}>☰</button><div className="breadcrumb"><small>WORKSPACE ATIVO</small><strong>{views.find((view) => view.id === role)?.title}</strong></div><div className="top-right"><span className="demo-tag">● &nbsp; DEMONSTRAÇÃO</span><div className="notice-wrap"><button className="notification" aria-label={`${notifications} notificações demonstrativas`} aria-expanded={noticesOpen} onClick={() => setNoticesOpen(!noticesOpen)}>♧<b>{notifications}</b></button>{noticesOpen ? <div className="notice-panel"><strong>Pendências demonstrativas</strong>{notices.slice(0, 12).map(({ appointment, kind }) => <button key={appointment.id} onClick={() => navigate(kind === "clinical" ? "professional" : kind === "blocked" ? "management" : "reception", appointment.day, appointment.id)}>{kind === "clinical" ? "Prontuário pendente" : kind === "blocked" ? "Confirmação bloqueada" : "Confirmar atendimento"}<small>{appointment.id} · {appointment.day} · {appointment.time}</small></button>)}{!notices.length ? <p>Nenhuma pendência notificada.</p> : null}</div> : null}</div><div className="identity"><span className="avatar">{role === "reception" ? "R" : role === "professional" ? "P" : role === "finance" ? "F" : "G"}</span><span><strong>{views.find((view) => view.id === role)?.title}</strong><small>Perfil simulado</small></span></div></div></header>
       <main className="page-content">
         {message ? <div className={`toast ${message.error ? "toast-error" : ""}`} role="status">{message.text}<button aria-label="Fechar aviso" onClick={() => setMessage(null)}>×</button></div> : null}
-        {role === "reception" ? <Reception state={state} unit={unit} onUnit={setUnit} selectedDay={selectedDay} onDay={setSelectedDay} run={run} onManagement={() => navigate("management")}/> : role === "professional" ? <ProfessionalView state={state} unit={unit} onUnit={setUnit} selectedDay={selectedDay} onDay={setSelectedDay} focusAppointmentId={focusAppointmentId} run={run}/> : role === "finance" ? <Finance state={state} unit={unit} onUnit={setUnit} run={run}/> : <Management state={state} unit={unit} onUnit={setUnit} run={run} onNavigate={(nextRole, day) => navigate(nextRole, day)}/>}
+        {role === "reception" ? <Reception state={state} unit={unit} onUnit={setUnit} selectedDay={selectedDay} onDay={setSelectedDay} run={run} onManagement={() => navigate("management")} focusAppointmentId={focusAppointmentId} onResolveBlock={resolveBlock} onReturn={returnContext ? returnToContext : undefined}/> : role === "professional" ? <ProfessionalView state={state} unit={unit} onUnit={setUnit} selectedDay={selectedDay} onDay={setSelectedDay} focusAppointmentId={focusAppointmentId} run={run} onReturn={returnContext ? returnToContext : undefined}/> : role === "finance" ? <Finance state={state} unit={unit} onUnit={setUnit} run={run} focusAppointmentId={focusAppointmentId} onReturn={returnContext ? returnToContext : undefined}/> : <Management state={state} unit={unit} onUnit={setUnit} run={run} onNavigate={(nextRole, day, id) => navigate(nextRole, day, id)}/>}
         <footer className="footer">7Clinic · SPEC 00 · dados 100% fictícios · persistência somente neste navegador · não utilizar para atendimento real</footer>
       </main>
     </div>

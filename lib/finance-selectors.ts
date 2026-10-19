@@ -35,3 +35,21 @@ export function filterFinance(state: DemoState, unit: UnitId | "all", filters: F
   return { entries, reversals };
 }
 
+export function financeSummary(state: DemoState, unit: UnitId | "all", filters: FinanceFilters) {
+  const { entries, reversals } = filterFinance(state, unit, filters);
+  const receivable = filters.account !== "payable";
+  const payable = filters.account !== "receivable";
+  const showOpen = filters.situation === "all" || filters.situation === "open";
+  const showSettled = filters.situation === "all" || filters.situation === "settled";
+  return {
+    production: entries.reduce((sum, item) => sum + item.expectedRevenue, 0),
+    toReceive: receivable && showOpen ? entries.filter((item) => !item.revenueReceived).reduce((sum, item) => sum + item.expectedRevenue, 0) : 0,
+    received: receivable && showSettled ? entries.filter((item) => item.revenueReceived).reduce((sum, item) => sum + item.expectedRevenue, 0) : 0,
+    toPay: payable && showOpen ? entries.filter((item) => !item.payoutPaid).reduce((sum, item) => sum + item.payout, 0) : 0,
+    paid: payable && showSettled ? entries.filter((item) => item.payoutPaid).reduce((sum, item) => sum + item.payout, 0) : 0,
+    reversed: reversals.reduce((sum, item) => sum + (filters.account === "payable" ? item.payout : item.expectedRevenue), 0),
+    entries: entries.length,
+    reversals: reversals.length,
+  };
+}
+

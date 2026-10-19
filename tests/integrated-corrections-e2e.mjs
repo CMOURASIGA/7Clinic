@@ -103,7 +103,8 @@ try {
   await page.getByRole("button", { name: /Reiniciar cenário fictício/ }).click();
   await page.getByRole("dialog", { name: "Reiniciar cenário fictício" }).getByRole("button", { name: "Sim, reiniciar cenário" }).click();
   assert.equal((await stored()).patients.some((item) => item.id === patient.id), false);
-  assert.equal((await stored()).central.conversations.find((item) => item.id === "c1").draft, "");
+  await page.getByRole("button", { name: "Abrir Central de Atendimento" }).click();
+  assert.equal(await page.getByRole("textbox", { name: "Rascunho da conversa" }).inputValue(), "");
   assert.deepEqual(errors, []);
   console.log("PASS integrated corrections desktop: Central, cadastro, edição, exclusão, confirmação, prontuário, conciliações, auditoria, persistência e reset");
 } finally {

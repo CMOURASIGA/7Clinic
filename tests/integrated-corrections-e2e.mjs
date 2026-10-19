@@ -16,6 +16,7 @@ const stored = () => page.evaluate(() => JSON.parse(localStorage.getItem("7clini
 try {
   await page.goto(base);
   await page.getByRole("heading", { name: "Agenda e atendimento" }).waitFor();
+  const initialAlerts = await page.locator(".notification").getAttribute("aria-label");
   await page.getByRole("button", { name: "Abrir Central de Atendimento" }).click();
   await page.getByRole("textbox", { name: "Rascunho da conversa" }).fill("Rascunho sintético da validação integrada");
   await go("Recepção");
@@ -58,10 +59,16 @@ try {
   const before = await stored();
   await row.getByRole("button", { name: "Confirmar" }).click();
   const after = await stored();
+  const confirmed = after.appointments.find((item) => item.patientId === patient.id);
   assert.equal(after.financial.length, before.financial.length + 1);
-  assert.equal(after.financial.filter((item) => item.appointmentId === after.appointments.find((item) => item.patientId === patient.id).id).length, 1);
+  assert.equal(after.financial.filter((item) => item.appointmentId === confirmed.id).length, 1);
   await page.screenshot({ path: "artifacts/visual/integrated-reception-desktop.png", fullPage: true });
 
+  await page.locator(".notification").click();
+  const clinicalAlert = page.locator(".notice-panel button").filter({ hasText: confirmed.id });
+  assert.match(await clinicalAlert.innerText(), /Prontuário pendente/);
+  await clinicalAlert.click();
+  await page.getByRole("heading", { name: "Minha agenda" }).waitFor();
   await go("Profissionais");
   await page.getByRole("heading", { name: "Minha agenda" }).waitFor();
   assert.match(await page.locator(".clinical-row").filter({ hasText: patient.name }).innerText(), /10:30/);
@@ -105,6 +112,7 @@ try {
   assert.equal((await stored()).patients.some((item) => item.id === patient.id), false);
   await page.getByRole("button", { name: "Abrir Central de Atendimento" }).click();
   assert.equal(await page.getByRole("textbox", { name: "Rascunho da conversa" }).inputValue(), "");
+  assert.equal(await page.locator(".notification").getAttribute("aria-label"), initialAlerts);
   assert.deepEqual(errors, []);
   console.log("PASS integrated corrections desktop: Central, cadastro, edição, exclusão, confirmação, prontuário, conciliações, auditoria, persistência e reset");
 } finally {

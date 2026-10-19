@@ -90,7 +90,7 @@ try {
       assert.ok((await page.getByText("Produção gerada filtrada").locator("..").innerText()).includes("480,00"));
       await page.getByRole("combobox", { name: "Conta" }).selectOption("payable");
       await page.getByRole("combobox", { name: "Situação" }).selectOption("open");
-      assert.ok((await page.getByText("A receber", { exact: true }).locator("..").innerText()).includes("0,00"));
+      assert.ok((await page.locator(".stat").filter({ hasText: "A receber" }).first().innerText()).includes("0,00"));
       await evidence("contas-filtradas");
       await page.getByRole("combobox", { name: "Conta" }).selectOption("all");
       await page.getByRole("combobox", { name: "Situação" }).selectOption("all");

@@ -2,7 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { answerMaia } from "../lib/maia.ts";
 import { createScenario, createSeed, executeForRole } from "../lib/domain.ts";
-import { financeSummary, type FinanceFilters } from "../lib/finance-selectors.ts";
+import { filterFinance, financeSummary, type FinanceFilters } from "../lib/finance-selectors.ts";
+import { brandTextColor, suggestBrandColors } from "../lib/branding.ts";
 
 const scope = { unit: "all" as const, professionalId: "", from: "", to: "" };
 
@@ -53,4 +54,39 @@ test("subtotais financeiros obedecem conta, situação, profissional e unidade",
   assert.equal(result.toReceive, 120);
   assert.equal(result.received, 0);
   assert.equal(result.toPay, 0);
+});
+
+test("indicadores iniciais usam as contas exibidas e permanecem coerentes com o detalhamento", () => {
+  let state = createScenario();
+  const all: FinanceFilters = { professionalId: "", insurance: "", from: "", to: "", account: "all", situation: "all" };
+  const initial = financeSummary(state, "all", all);
+  assert.equal(initial.production, 480);
+  assert.equal(initial.toReceive, 240);
+  assert.equal(initial.received, 240);
+  assert.equal(initial.toPay, 54);
+  assert.equal(initial.paid, 18);
+  for (const [metric, account, situation] of [
+    ["toReceive", "receivable", "open"], ["received", "receivable", "settled"],
+    ["toPay", "payable", "open"], ["paid", "payable", "settled"],
+  ] as const) {
+    const scoped = { ...all, account, situation };
+    assert.equal(financeSummary(state, "all", scoped)[metric], initial[metric]);
+    const rows = filterFinance(state, "all", scoped);
+    const shown = account === "receivable" ? rows.receivable : rows.payable;
+    assert.equal(shown.reduce((sum, entry) => sum + (account === "receivable" ? entry.expectedRevenue : entry.payout), 0), initial[metric]);
+  }
+  state = executeForRole(state, "reception", { type: "confirm", appointmentId: "a1", actor: "Recepção" });
+  assert.equal(financeSummary(state, "all", all).production, 600);
+  assert.equal(financeSummary(state, "all", all).toReceive, 360);
+  state = executeForRole(state, "finance", { type: "settle", entryId: "fin:a1", field: "revenueReceived", actor: "Financeiro" });
+  assert.equal(financeSummary(state, "all", all).toReceive, 240);
+  assert.equal(financeSummary(state, "all", all).received, 360);
+  const u1 = financeSummary(state, "u1", { ...all, professionalId: "pr1" });
+  assert.ok(u1.production < financeSummary(state, "all", all).production);
+});
+
+test("cores de marca sugeridas e contraste legível", () => {
+  assert.deepEqual(suggestBrandColors(new Uint8ClampedArray([0, 64, 192, 255, 192, 64, 0, 255])), { primary: "#0040c0", highlight: "#c04000" });
+  assert.equal(brandTextColor("#003b73"), "#ffffff");
+  assert.equal(brandTextColor("#ffffff"), "#17324d");
 });

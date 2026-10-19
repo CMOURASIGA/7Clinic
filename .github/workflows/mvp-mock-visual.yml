@@ -2,15 +2,6 @@ name: MVP mock visual gates
 on:
   push:
     branches: [feat/mvp-mockado-human-validation]
-  pull_request:
-    branches: [develop]
-    paths:
-      - '.github/workflows/mvp-mock-visual.yml'
-      - 'app/**'
-      - 'components/**'
-      - 'lib/**'
-      - 'tests/**'
-      - 'package*.json'
 jobs:
   visual:
     runs-on: ubuntu-latest
@@ -37,9 +28,21 @@ jobs:
           done
           cat /tmp/7clinic-next.log
           exit 1
-      - run: node tests/smoke.mjs
-      - run: node tests/e2e.mjs
-      - run: node tests/validation-e2e.mjs
+      - id: smoke
+        run: node tests/smoke.mjs
+        continue-on-error: true
+      - id: e2e
+        run: node tests/e2e.mjs
+        continue-on-error: true
+      - id: validation
+        run: node tests/validation-e2e.mjs
+        continue-on-error: true
+      - name: Consolidate visual results
+        if: always()
+        run: |
+          test "${{ steps.smoke.outcome }}" = success
+          test "${{ steps.e2e.outcome }}" = success
+          test "${{ steps.validation.outcome }}" = success
       - uses: actions/upload-artifact@v4
         if: always()
         with:

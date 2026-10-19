@@ -35,14 +35,14 @@ try {
     await page.getByRole("button", { name: "+ Agendar" }).click();
     const form = page.locator("form").filter({ has: page.getByRole("button", { name: "Criar agendamento" }) });
     await form.getByLabel("Paciente").selectOption("p3");
-    await form.getByLabel("Horário").fill("18:00");
+    await form.getByLabel("Horário").fill("18:30");
     await page.getByRole("button", { name: "Criar agendamento" }).click();
-    const row = page.locator(".appointment").filter({ hasText: "18:00" });
+    const row = page.locator(".appointment").filter({ hasText: "18:30" });
     await row.getByRole("button", { name: "Confirmar" }).click();
     await page.getByText("Ação registrada na demonstração.").waitFor();
     await go("Profissionais");
     await page.getByRole("heading", { name: "Minha agenda" }).waitFor();
-    await page.locator(".clinical-row").filter({ hasText: "18:00" }).click();
+    await page.locator(".clinical-row").filter({ hasText: "18:30" }).click();
     await page.getByRole("heading", { name: "Evolução pendente" }).waitFor();
     await go("Financeiro");
     await page.getByText("Produção gerada filtrada").waitFor();

@@ -96,3 +96,23 @@ test("HV-20 conversa aguardando paciente e rascunho não enviam nem reservam", (
   assert.throws(() => applyCentralCommand(state, { type: "reserve", conversationId: "c2" }), /escolha explícita/);
   assert.equal(state.appointments.length, fixture().appointments.length);
 });
+
+test("cancelamento do pré-agendamento mantém ID histórico e libera nova escolha na conversa", () => {
+  let state = fixture();
+  const c = centralOf(state).conversations.find((item) => item.id === "c3")!;
+  const slot = availableSlots(state, c).find((item) => item.available)!.slot;
+  state = update(state, "c3", { choice: slot, choiceConfirmed: true });
+  state = applyCentralCommand(state, { type: "reserve", conversationId: "c3" });
+  const first = centralOf(state).conversations.find((item) => item.id === "c3")!.appointmentId!;
+  state = applyCommand(state, { type: "cancel", appointmentId: first, actor: "Recepção demonstrativa", reason: "Paciente alterou a escolha fictícia" });
+  const released = centralOf(state).conversations.find((item) => item.id === "c3")!;
+  assert.equal(released.appointmentId, undefined);
+  assert.deepEqual(released.previousAppointmentIds, [first]);
+  assert.equal(released.requestStatus, "SEM_AGENDAMENTO");
+  assert.equal(state.appointments.find((item) => item.id === first)?.status, "cancelled");
+  const secondSlot = availableSlots(state, released).find((item) => item.available && item.slot.time !== slot.time)!.slot;
+  state = update(state, "c3", { choice: secondSlot, choiceConfirmed: true });
+  state = applyCentralCommand(state, { type: "reserve", conversationId: "c3" });
+  assert.notEqual(centralOf(state).conversations.find((item) => item.id === "c3")?.appointmentId, first);
+  assert.equal(state.financial.some((item) => item.appointmentId === first), false);
+});

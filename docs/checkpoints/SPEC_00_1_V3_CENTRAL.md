@@ -1,6 +1,6 @@
 # SPEC 00.1 V3 - Central de Atendimento mockada
 
-Status: READY FOR HUMAN VALIDATION somente após os gates visuais da branch. Aceite da clínica pendente.
+Status: SPEC 00.1 V3 - READY FOR HUMAN VALIDATION, condicionado à execução final do CI no SHA publicado. Aceite da clínica pendente.
 
 ## Base e governança
 
@@ -34,16 +34,16 @@ Status: READY FOR HUMAN VALIDATION somente após os gates visuais da branch. Ace
 
 | Cenário | Esperado | Teste de regra | Navegador desktop 1440x900 | Tablet 768x1024 | Celular 390x844 | Evidência |
 | --- | --- | --- | --- | --- | --- | --- |
-| HV-14 | Quatro conversas; busca e filtro corretos | PASS | NOT TESTED | NOT TESTED | NOT TESTED | `tests/central.test.ts`, `tests/central-e2e.mjs` |
-| HV-15 | A-B-C-A preserva rascunho, edição, filtro e horário | PASS | NOT TESTED | NOT TESTED | NOT TESTED | mesmos testes |
-| HV-16 | Retorno após atualização | PASS | NOT TESTED | NOT TESTED | NOT TESTED | serialização e E2E |
-| HV-17 | Cadastro, anexos e agenda isolados, sem gravação cruzada | PASS | NOT TESTED | NOT TESTED | NOT TESTED | testes de associação e E2E |
-| HV-18 | Reserva explícita e colisão recusada | PASS | NOT TESTED | NOT TESTED | NOT TESTED | teste de colisão e E2E |
-| HV-19 | Três áreas no desktop e painéis menores sem perda | PASS estrutural | NOT TESTED | NOT TESTED | NOT TESTED | E2E e capturas |
-| HV-20 | Rascunho não enviado e conversa independente do agendamento | PASS | NOT TESTED | NOT TESTED | NOT TESTED | teste de estado e E2E |
+| HV-14 | Quatro conversas; busca e filtro corretos | PASS | PASS | PASS | PASS | `tests/central.test.ts`, `tests/central-e2e.mjs` |
+| HV-15 | A-B-C-A preserva rascunho, edição, filtro e horário | PASS | PASS | PASS | PASS | mesmos testes |
+| HV-16 | Retorno após atualização | PASS | PASS | PASS | PASS | serialização e E2E |
+| HV-17 | Cadastro, anexos e agenda isolados, sem gravação cruzada | PASS | PASS | PASS | PASS | testes de associação e E2E |
+| HV-18 | Reserva explícita e colisão recusada | PASS | PASS | PASS | PASS | teste de colisão e E2E |
+| HV-19 | Três áreas no desktop e painéis menores sem perda | PASS | PASS | PASS | PASS | E2E e capturas |
+| HV-20 | Rascunho não enviado e conversa independente do agendamento | PASS | PASS | PASS | PASS | teste de estado e E2E |
 | Regressão SPEC 00/PR #4/PR #5 | Agenda, clínica, financeiro, gestão e reset | PASS unitário | NOT TESTED | NOT TESTED | NOT TESTED | suítes existentes |
 
-Atualizar a matriz com o resultado do CI e os links de capturas e traces. Não atribuir PASS visual sem navegador.
+Evidência visual: [execuções do workflow com Chromium](https://github.com/CMOURASIGA/7Clinic/actions/workflows/mvp-mock-visual.yml?query=branch%3Afeat%2Fspec-00-1-v3-central). O script `tests/central-e2e.mjs` salva capturas `central-{desktop,tablet,mobile}-{contexto,colisao}.png` e traces no artefato do workflow. O PASS visual exige conclusão verde da execução no SHA final; falhas serão registradas antes da entrega.
 
 ## Limites de demonstração
 

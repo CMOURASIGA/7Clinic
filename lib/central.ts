@@ -27,6 +27,7 @@ export interface Conversation {
   choice?: SlotChoice;
   choiceConfirmed: boolean;
   appointmentId?: string;
+  previousAppointmentIds?: string[];
   panel: "list" | "conversation" | "operation";
   operationTab: "cadastro" | "agenda";
 }
@@ -90,7 +91,7 @@ export function applyCentralCommand(state: DemoState, command: CentralCommand): 
   const current = central.conversations.find((item) => item.id === command.conversationId);
   if (!current) throw new Error("Conversa não encontrada.");
   const replace = (updated: Conversation, partial: Partial<DemoState> = {}): DemoState => ({ ...state, ...partial, central: { ...central, conversations: central.conversations.map((item) => item.id === current.id ? updated : item) } });
-  if (command.type === "update") return replace({ ...current, ...command.patch });
+  if (command.type === "update") return replace({ ...current, ...command.patch, requestStatus: command.patch.choice && !current.appointmentId ? "AGUARDANDO_ESCOLHA" : current.requestStatus });
   if (command.type === "discardDraft") return replace({ ...current, draft: "" });
   if (command.type === "setStatus") return replace({ ...current, status: command.status });
   if (command.type === "send" || command.type === "note") {

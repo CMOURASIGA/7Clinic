@@ -8,7 +8,7 @@ import { ProfessionalView } from "../components/professional";
 import { Reception } from "../components/reception";
 import { createScenario, DEMO_DAY, executeForRole, notificationItems, type Command, type DemoState, type Role, type UnitId } from "../lib/domain";
 import { localRepository } from "../lib/local-repository";
-import { DEFAULT_BRAND, loadBrand, resetBrand, saveBrand, type DemoBrand } from "../lib/branding";
+import { DEFAULT_BRAND, brandTextColor, loadBrand, resetBrand, saveBrand, type DemoBrand } from "../lib/branding";
 import { MiniCalendar } from "../components/mini-calendar";
 import { Central } from "../components/central";
 import { applyCentralCommand, type CentralCommand } from "../lib/central";
@@ -54,7 +54,8 @@ export default function Home() {
     return () => window.clearTimeout(timer);
   }, []);
   useEffect(() => { if (ready) localRepository.save(state); }, [state, ready]);
-  useEffect(() => { if (ready) saveBrand(brand); }, [brand, ready]);
+  function updateBrand(value: DemoBrand) { try { saveBrand(value); setBrand(value); setMessage({ text: "Identidade visual salva neste navegador.", error: false }); } catch { setMessage({ text: "Não há espaço local para salvar esta imagem. Escolha uma menor.", error: true }); } }
+  function restoreBrand() { resetBrand(); setBrand(DEFAULT_BRAND); setMessage({ text: "Identidade Consult Services restaurada.", error: false }); }
 
   function run(command: Command) {
     try {
@@ -126,7 +127,7 @@ export default function Home() {
 
   if (!ready) return <div className="loading">Preparando a demonstração do 7Clinic...</div>;
 
-  return <div className="shell" style={{ "--navy": brand.primary, "--blue": brand.primary, "--highlight": brand.highlight } as CSSProperties}>
+  return <div className="shell" style={{ "--navy": brand.primary, "--blue": brand.primary, "--highlight": brand.highlight, "--brand-on-primary": brandTextColor(brand.primary), "--brand-on-highlight": brandTextColor(brand.highlight) } as CSSProperties}>
     {menuOpen ? <button className="sidebar-backdrop" aria-label="Fechar menu" onClick={() => setMenuOpen(false)}/> : null}
     <aside className={`sidebar ${menuOpen ? "is-open" : ""}`} aria-label="Menu do 7Clinic">
       <button className="sidebar-close" aria-label="Fechar menu lateral" onClick={() => setMenuOpen(false)}>×</button>
@@ -142,7 +143,7 @@ export default function Home() {
       <header className="topbar"><button className="mobile-nav-toggle" aria-label="Abrir menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(true)}>☰</button><div className="breadcrumb"><small>WORKSPACE ATIVO</small><strong>{centralOpen ? "Recepção · Central" : views.find((view) => view.id === role)?.title}</strong></div><div className="top-right"><span className="demo-tag">● &nbsp; DEMONSTRAÇÃO</span><div className="notice-wrap"><button className="notification" aria-label={`${notifications} notificações demonstrativas`} aria-expanded={noticesOpen} onClick={() => setNoticesOpen(!noticesOpen)}>♧<b>{notifications}</b></button>{noticesOpen ? <div className="notice-panel"><strong>Pendências demonstrativas</strong>{notices.slice(0, 12).map(({ appointment, kind }) => <button key={appointment.id} onClick={() => navigate(kind === "clinical" ? "professional" : kind === "blocked" ? "management" : "reception", appointment.day, appointment.id)}>{kind === "clinical" ? "Prontuário pendente" : kind === "blocked" ? "Confirmação bloqueada" : "Confirmar atendimento"}<small>{appointment.id} · {appointment.day} · {appointment.time}</small></button>)}{!notices.length ? <p>Nenhuma pendência notificada.</p> : null}</div> : null}</div><div className="identity"><span className="avatar">{role === "reception" ? "R" : role === "professional" ? "P" : role === "finance" ? "F" : "G"}</span><span><strong>{views.find((view) => view.id === role)?.title}</strong><small>Perfil simulado</small></span></div></div></header>
       <main className="page-content">
         {message ? <div className={`toast ${message.error ? "toast-error" : ""}`} role="status">{message.text}<button aria-label="Fechar aviso" onClick={() => setMessage(null)}>×</button></div> : null}
-        {role === "reception" && centralOpen ? <><button className="button button-light central-back" onClick={() => setCentralOpen(false)}>← Voltar à agenda da Recepção</button><Central state={state} run={runCentral} onAgenda={(day, id) => navigate("reception", day, id)}/></> : role === "reception" ? <Reception state={state} unit={unit} onUnit={setUnit} selectedDay={selectedDay} onDay={setSelectedDay} run={run} onCentral={() => setCentralOpen(true)} onManagement={() => navigate("management")} onFocus={(day, id) => navigate("reception", day, id)} focusAppointmentId={focusAppointmentId} onResolveBlock={resolveBlock} onReturn={returnContext ? returnToContext : undefined}/> : role === "professional" ? <ProfessionalView state={state} unit={unit} onUnit={setUnit} selectedDay={selectedDay} onDay={setSelectedDay} focusAppointmentId={focusAppointmentId} run={run} onReturn={returnContext ? returnToContext : undefined}/> : role === "finance" ? <Finance state={state} unit={unit} onUnit={setUnit} run={run} focusAppointmentId={focusAppointmentId} onReturn={returnContext ? returnToContext : undefined}/> : <Management state={state} unit={unit} onUnit={setUnit} run={run} onNavigate={(nextRole, day, id) => navigate(nextRole, day, id)} brand={brand} onBrand={setBrand}/>}
+        {role === "reception" && centralOpen ? <><button className="button button-light central-back" onClick={() => setCentralOpen(false)}>← Voltar à agenda da Recepção</button><Central state={state} run={runCentral} onAgenda={(day, id) => navigate("reception", day, id)}/></> : role === "reception" ? <Reception state={state} unit={unit} onUnit={setUnit} selectedDay={selectedDay} onDay={setSelectedDay} run={run} onCentral={() => setCentralOpen(true)} onManagement={() => navigate("management")} onFocus={(day, id) => navigate("reception", day, id)} focusAppointmentId={focusAppointmentId} onResolveBlock={resolveBlock} onReturn={returnContext ? returnToContext : undefined}/> : role === "professional" ? <ProfessionalView state={state} unit={unit} onUnit={setUnit} selectedDay={selectedDay} onDay={setSelectedDay} focusAppointmentId={focusAppointmentId} run={run} onReturn={returnContext ? returnToContext : undefined}/> : role === "finance" ? <Finance state={state} unit={unit} onUnit={setUnit} run={run} focusAppointmentId={focusAppointmentId} onReturn={returnContext ? returnToContext : undefined}/> : <Management state={state} unit={unit} onUnit={setUnit} run={run} onNavigate={(nextRole, day, id) => navigate(nextRole, day, id)} brand={brand} onBrand={updateBrand} onRestoreBrand={restoreBrand}/>}
         <footer className="footer">7Clinic · SPEC 00 · dados 100% fictícios · persistência somente neste navegador · não utilizar para atendimento real</footer>
       </main>
     </div>

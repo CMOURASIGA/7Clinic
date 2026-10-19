@@ -60,6 +60,7 @@ try {
       await operation.getByRole("button", { name: "Carteirinha fictícia A" }).click();
       await page.getByRole("dialog", { name: "Anexo Carteirinha fictícia A" }).getByText("DOCUMENTO SINTÉTICO").waitFor();
       await page.getByRole("button", { name: "Fechar anexo" }).click();
+      await page.evaluate(() => window.scrollTo(0, 0));
       await page.screenshot({ path: `artifacts/visual/central-${size.name}-contexto.png`, fullPage: true });
       await page.reload();
       await page.getByRole("button", { name: "Abrir Central de Atendimento" }).click();
@@ -99,6 +100,7 @@ try {
       const afterCollision = await page.evaluate(() => JSON.parse(localStorage.getItem("7clinic:spec00:demo:v1")));
       assert.equal(afterCollision.central.conversations.find((c) => c.id === "c4").appointmentId, undefined);
       assert.equal(afterCollision.appointments.filter((a) => a.day === contested.day && a.time === contested.time && a.professionalId === contested.professionalId && a.status === "prebooked").length, 1);
+      await page.evaluate(() => window.scrollTo(0, 0));
       await page.screenshot({ path: `artifacts/visual/central-${size.name}-colisao.png`, fullPage: true });
       assert.ok((await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)) <= 2, `${size.name}: rolagem horizontal`);
       assert.deepEqual(errors, []);

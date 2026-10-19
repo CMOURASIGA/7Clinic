@@ -21,7 +21,7 @@ try {
     try {
       await page.goto(base);
       await page.getByRole("heading", { name: "Agenda e atendimento" }).waitFor();
-      const original = page.locator(".appointment").filter({ hasText: "14:00" });
+      const original = page.locator(".appointment").filter({ has: page.locator(".appointment-time strong").getByText("14:00", { exact: true }) });
       await original.getByRole("button", { name: "Desfazer confirmação" }).click();
       await page.getByRole("dialog", { name: "Operação bloqueada" }).getByText("evolução clínica ativa", { exact: false }).waitFor();
       await evidence("reversao-bloqueada-clinica");
@@ -53,10 +53,10 @@ try {
       await page.getByRole("dialog", { name: "Desfazer atendimento" }).getByRole("button", { name: "Confirmar" }).click();
       await original.locator(".status-scheduled").waitFor();
       await evidence("reversao-concluida");
-      const transferRow = page.locator(".appointment").filter({ hasText: "09:00" });
+      const transferRow = page.locator(".appointment").filter({ has: page.locator(".appointment-time strong").getByText("09:00", { exact: true }) });
       await transferRow.getByRole("combobox", { name: /Transferir/ }).selectOption("u2");
       assert.ok((await transferRow.innerText()).includes("Unidade II"));
-      const absentRow = page.locator(".appointment").filter({ hasText: "11:00" });
+      const absentRow = page.locator(".appointment").filter({ has: page.locator(".appointment-time strong").getByText("11:00", { exact: true }) });
       await absentRow.getByRole("button", { name: "Falta" }).click();
       await absentRow.locator(".status-absent").waitFor();
       await absentRow.getByRole("button", { name: "Desfazer falta" }).click();

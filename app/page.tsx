@@ -111,6 +111,7 @@ export default function Home() {
   return <div className="shell" style={{ "--navy": brand.primary, "--blue": brand.primary, "--highlight": brand.highlight } as CSSProperties}>
     {menuOpen ? <button className="sidebar-backdrop" aria-label="Fechar menu" onClick={() => setMenuOpen(false)}/> : null}
     <aside className={`sidebar ${menuOpen ? "is-open" : ""}`} aria-label="Menu do 7Clinic">
+      <button className="sidebar-close" aria-label="Fechar menu lateral" onClick={() => setMenuOpen(false)}>×</button>
       <div className="clinic-lockup"><Image src={brand.logo} alt={`Logo ${brand.name}`} width={200} height={80} unoptimized className="brand-logo"/><span>{brand.name}</span></div>
       <div className="brand"><div><strong>7Clinic</strong><small>Gestão clínica · SPEC 00</small></div></div>
       <div className="organization-label">Organização demonstrativa: Clínica Movimentar-se</div>

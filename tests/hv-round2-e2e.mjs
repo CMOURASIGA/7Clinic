@@ -22,11 +22,11 @@ try {
       await menu();
       assert.equal(await page.getByRole("img", { name: "Logo Consult Services" }).isVisible(), true);
       await page.getByRole("button", { name: "Selecionar 2026-10-17" }).click();
-      if (size.width <= 730) await page.getByRole("button", { name: "Fechar menu" }).click();
+      if (size.width <= 730) await page.getByRole("button", { name: "Fechar menu lateral" }).click();
       await page.getByText("Nenhum atendimento para os filtros selecionados.").waitFor();
       await menu();
       await page.getByRole("button", { name: "Selecionar 2026-10-16" }).click();
-      if (size.width <= 730) await page.getByRole("button", { name: "Fechar menu" }).click();
+      if (size.width <= 730) await page.getByRole("button", { name: "Fechar menu lateral" }).click();
       await page.getByRole("button", { name: "+ Agendar" }).click();
       const form = page.locator("form").filter({ has: page.getByRole("button", { name: "Criar agendamento" }) });
       await form.getByLabel("Paciente").selectOption("p3");

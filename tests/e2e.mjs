@@ -35,7 +35,7 @@ try {
       assert.ok((await rows.count()) > 0, `${viewport.name}: cenário ${status} ausente`);
       for (const row of await rows.all()) assert.equal((await row.innerText()).includes("Bloqueado:"), false, `${viewport.name}: aviso indevido em ${status}`);
     }
-    const a1 = page.locator(".appointment").filter({ hasText: "08:00" });
+    const a1 = page.locator(".appointment").filter({ has: page.locator(".appointment-time strong").getByText("08:00", { exact: true }) });
     await a1.getByRole("button", { name: "Confirmar" }).click();
     await page.getByText("Ação registrada na demonstração.").waitFor();
     await go("Financeiro");
